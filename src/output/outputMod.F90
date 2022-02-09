@@ -2123,10 +2123,10 @@ contains
              v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
 
              ! Dot product with free stream
-             sensor = -dot_product(v, velDirFreeStream)
+             sensor = 1-dot_product(v, velDirFreeStream)
 
              !Now run through a smooth heaviside function:
-             sensor = one/(one + exp(-2*sepSensorSharpness*(sensor - sepSensorOffset)))
+             sensor = sensor
              buffer(nn) = sensor
           enddo
        enddo

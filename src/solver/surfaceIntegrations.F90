@@ -478,11 +478,11 @@ contains
        v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
 
        ! Dot product with free stream
-       sensor = -(v(1)*velDirFreeStream(1) + v(2)*velDirFreeStream(2) + &
+       sensor = 1-(v(1)*velDirFreeStream(1) + v(2)*velDirFreeStream(2) + &
             v(3)*velDirFreeStream(3))
 
        !Now run through a smooth heaviside function:
-       sensor = one/(one + exp(-2*sepSensorSharpness*(sensor-sepSensorOffset)))
+
 
        ! And integrate over the area of this cell and save, blanking as we go.
        sensor = sensor * cellArea * blk
