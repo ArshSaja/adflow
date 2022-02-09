@@ -1097,10 +1097,10 @@ contains
     intrinsic exp
     real(kind=realtype), dimension(3) :: tmp0
     integer :: branch
-    real(kind=realtype) :: temp3
     real(kind=realtype) :: tempd14
-    real(kind=realtype) :: temp2
+    real(kind=realtype) :: temp3
     real(kind=realtype) :: tempd13
+    real(kind=realtype) :: temp2
     real(kind=realtype) :: temp1
     real(kind=realtype) :: tempd12
     real(kind=realtype) :: temp0
@@ -1126,9 +1126,7 @@ contains
     real(kind=realtype) :: temp
     real(kind=realtype) :: tempd19
     real(kind=realtype) :: tempd18
-    real(kind=realtype) :: temp6
     real(kind=realtype) :: tempd17
-    real(kind=realtype) :: temp5
     real(kind=realtype) :: tempd16
     real(kind=realtype) :: temp4
     real(kind=realtype) :: tempd15
@@ -1248,11 +1246,9 @@ contains
       v(3) = ww2(i, j, ivz)
       v = v/(sqrt(v(1)**2+v(2)**2+v(3)**2)+1e-16)
 ! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
+      sensor = 1 - (v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(&
+&       3)*veldirfreestream(3))
 !now run through a smooth heaviside function:
-      sensor = one/(one+exp(-(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
@@ -1550,12 +1546,9 @@ contains
       call pushreal8array(v, 3)
       v = tmp0
 ! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
+      sensor = 1 - (v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(&
+&       3)*veldirfreestream(3))
 !now run through a smooth heaviside function:
-      call pushreal8(sensor)
-      sensor = one/(one+exp(-(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))))
 ! and integrate over the area of this cell and save, blanking as we go.
       call pushreal8(sensor)
       sensor = sensor*cellarea*blk
@@ -1580,15 +1573,15 @@ contains
         cellaread = blk*sensor1*sensor1d
         sensor1d = blk*cellarea*sensor1d
         call popreal8(sensor1)
-        temp6 = -(10*2*sensor1)
-        temp5 = one + exp(temp6)
-        sensor1d = exp(temp6)*one*10*2*sensor1d/temp5**2
+        temp4 = -(10*2*sensor1)
+        temp3 = one + exp(temp4)
+        sensor1d = exp(temp4)*one*10*2*sensor1d/temp3**2
         cpd = -sensor1d
         tmpd = (plocal-pinf)*cpd
         plocald = tmp*cpd
         pinfd = pinfd - tmp*cpd
-        temp4 = gammainf*machcoef**2
-        machcoefd = machcoefd - gammainf*two*2*machcoef*tmpd/temp4**2
+        temp2 = gammainf*machcoef**2
+        machcoefd = machcoefd - gammainf*two*2*machcoef*tmpd/temp2**2
         tmp = two/(gammainf*pinf*machcoef*machcoef)
         pp2d(i, j) = pp2d(i, j) + plocald
       else
@@ -1627,16 +1620,12 @@ contains
       call popreal8(sensor)
       cellaread = cellaread + blk*sensor*sensord
       sensord = blk*cellarea*sensord
-      call popreal8(sensor)
-      temp3 = -(2*sepsensorsharpness*(sensor-sepsensoroffset))
-      temp2 = one + exp(temp3)
-      sensord = exp(temp3)*one*sepsensorsharpness*2*sensord/temp2**2
-      vd(1) = vd(1) - veldirfreestream(1)*sensord
-      veldirfreestreamd(1) = veldirfreestreamd(1) - v(1)*sensord
       vd(2) = vd(2) - veldirfreestream(2)*sensord
       veldirfreestreamd(2) = veldirfreestreamd(2) - v(2)*sensord
       vd(3) = vd(3) - veldirfreestream(3)*sensord
       veldirfreestreamd(3) = veldirfreestreamd(3) - v(3)*sensord
+      vd(1) = vd(1) - veldirfreestream(1)*sensord
+      veldirfreestreamd(1) = veldirfreestreamd(1) - v(1)*sensord
       call popreal8array(v, 3)
       tmpd0 = vd
       temp0 = v(1)**2 + v(2)**2 + v(3)**2
@@ -1917,11 +1906,9 @@ contains
       v(3) = ww2(i, j, ivz)
       v = v/(sqrt(v(1)**2+v(2)**2+v(3)**2)+1e-16)
 ! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
+      sensor = 1 - (v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(&
+&       3)*veldirfreestream(3))
 !now run through a smooth heaviside function:
-      sensor = one/(one+exp(-(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor

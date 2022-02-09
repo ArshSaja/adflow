@@ -1072,16 +1072,12 @@ contains
       vd = (vd*(result1+1e-16)-v*result1d)/(result1+1e-16)**2
       v = v/(result1+1e-16)
 ! dot product with free stream
-      sensord = -(vd(1)*veldirfreestream(1)+v(1)*veldirfreestreamd(1)+vd&
-&       (2)*veldirfreestream(2)+v(2)*veldirfreestreamd(2)+vd(3)*&
-&       veldirfreestream(3)+v(3)*veldirfreestreamd(3))
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
+      sensord = -(vd(1)*veldirfreestream(1)) - v(1)*veldirfreestreamd(1)&
+&       - vd(2)*veldirfreestream(2) - v(2)*veldirfreestreamd(2) - vd(3)*&
+&       veldirfreestream(3) - v(3)*veldirfreestreamd(3)
+      sensor = 1 - (v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(&
+&       3)*veldirfreestream(3))
 !now run through a smooth heaviside function:
-      arg1d = -(2*sepsensorsharpness*sensord)
-      arg1 = -(2*sepsensorsharpness*(sensor-sepsensoroffset))
-      sensord = -(one*arg1d*exp(arg1)/(one+exp(arg1))**2)
-      sensor = one/(one+exp(arg1))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensord = blk*(sensord*cellarea+sensor*cellaread)
       sensor = sensor*cellarea*blk
@@ -1484,11 +1480,9 @@ contains
       result1 = sqrt(arg1)
       v = v/(result1+1e-16)
 ! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
+      sensor = 1 - (v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(&
+&       3)*veldirfreestream(3))
 !now run through a smooth heaviside function:
-      arg1 = -(2*sepsensorsharpness*(sensor-sepsensoroffset))
-      sensor = one/(one+exp(arg1))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
