@@ -326,8 +326,8 @@ contains
 
     real(kind=realType) :: pm1, fx, fy, fz, fn
     real(kind=realType) :: xc, yc, zc, qf(3), r(3), n(3), L
-    real(kind=realType) :: fact, rho, mul, yplus, dwall
-    real(kind=realType) :: V(3), sensor, sensor1, Cp, tmp, plocal
+    real(kind=realType) :: fact, rho, mul, yplus, dwall, vectnormprod
+    real(kind=realType) :: V(3), sensor, sensor1, Cp, tmp, plocal, vectnorm(3)
     real(kind=realType) :: tauXx, tauYy, tauZz
     real(kind=realType) :: tauXy, tauXz, tauYz
 
@@ -478,12 +478,25 @@ contains
        v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
 
        ! Dot product with free stream
+
        sensor = -(v(1)*velDirFreeStream(1) + v(2)*velDirFreeStream(2) + &
             v(3)*velDirFreeStream(3))
 
        !Now run through a smooth heaviside function:
-       sensor = one/(one + exp(-2*sepSensorSharpness*(sensor-sepSensorOffset)))
-
+       vectnormprod = velDirFreeStream(1)*BCData(mm)%norm(i,j,1) + &
+            velDirFreeStream(2)*BCData(mm)%norm(i,j,2) + &
+            velDirFreeStream(3)*BCData(mm)%norm(i,j,3)
+     
+       vectnorm(1) =velDirFreeStream(1) - vectnormprod * BCData(mm)%norm(i,j,1)
+       vectnorm(2) =velDirFreeStream(2) - vectnormprod * BCData(mm)%norm(i,j,2)
+       vectnorm(3) =velDirFreeStream(3) - vectnormprod * BCData(mm)%norm(i,j,3)
+       
+       sensor = (v(1)*vectnorm(1) + v(2)*vectnorm(2) + &
+            v(3)*vectnorm(3))
+       sensor = 1-sensor     
+       sensor =sensor/(one + exp(2*sepSensorSharpness*(sensor-sepSensorOffset))) &
+        + one/(one + exp(2*sepSensorSharpness*(-sensor+sepSensorOffset)))
+       
        ! And integrate over the area of this cell and save, blanking as we go.
        sensor = sensor * cellArea * blk
        sepSensor = sepSensor + sensor

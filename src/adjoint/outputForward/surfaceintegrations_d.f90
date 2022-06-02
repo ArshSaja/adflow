@@ -851,9 +851,12 @@ contains
     real(kind=realtype) :: pm1d, fxd, fyd, fzd
     real(kind=realtype) :: xc, yc, zc, qf(3), r(3), n(3), l
     real(kind=realtype) :: xcd, ycd, zcd, rd(3)
-    real(kind=realtype) :: fact, rho, mul, yplus, dwall
-    real(kind=realtype) :: v(3), sensor, sensor1, cp, tmp, plocal
-    real(kind=realtype) :: vd(3), sensord, sensor1d, cpd, tmpd, plocald
+    real(kind=realtype) :: fact, rho, mul, yplus, dwall, vectnormprod
+    real(kind=realtype) :: vectnormprodd
+    real(kind=realtype) :: v(3), sensor, sensor1, cp, tmp, plocal, &
+&   vectnorm(3)
+    real(kind=realtype) :: vd(3), sensord, sensor1d, cpd, tmpd, plocald&
+&   , vectnormd(3)
     real(kind=realtype) :: tauxx, tauyy, tauzz
     real(kind=realtype) :: tauxxd, tauyyd, tauzzd
     real(kind=realtype) :: tauxy, tauxz, tauyz
@@ -875,6 +878,8 @@ contains
     real(kind=realtype) :: arg1d
     real(kind=realtype) :: result1
     real(kind=realtype) :: result1d
+    real(kind=realtype) :: arg2
+    real(kind=realtype) :: arg2d
     select case  (bcfaceid(mm)) 
     case (imin, jmin, kmin) 
       fact = -one
@@ -918,6 +923,7 @@ contains
     fpd = 0.0_8
     mpd = 0.0_8
     cavitationd = 0.0_8
+    vectnormd = 0.0_8
     sepsensord = 0.0_8
 !
 !         integrate the inviscid contribution over the solid walls,
@@ -1072,16 +1078,39 @@ contains
       vd = (vd*(result1+1e-16)-v*result1d)/(result1+1e-16)**2
       v = v/(result1+1e-16)
 ! dot product with free stream
-      sensord = -(vd(1)*veldirfreestream(1)+v(1)*veldirfreestreamd(1)+vd&
-&       (2)*veldirfreestream(2)+v(2)*veldirfreestreamd(2)+vd(3)*&
-&       veldirfreestream(3)+v(3)*veldirfreestreamd(3))
       sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
 &       veldirfreestream(3))
 !now run through a smooth heaviside function:
-      arg1d = -(2*sepsensorsharpness*sensord)
-      arg1 = -(2*sepsensorsharpness*(sensor-sepsensoroffset))
-      sensord = -(one*arg1d*exp(arg1)/(one+exp(arg1))**2)
-      sensor = one/(one+exp(arg1))
+      vectnormprodd = bcdata(mm)%norm(i, j, 1)*veldirfreestreamd(1) + &
+&       bcdata(mm)%norm(i, j, 2)*veldirfreestreamd(2) + bcdata(mm)%norm(&
+&       i, j, 3)*veldirfreestreamd(3)
+      vectnormprod = veldirfreestream(1)*bcdata(mm)%norm(i, j, 1) + &
+&       veldirfreestream(2)*bcdata(mm)%norm(i, j, 2) + veldirfreestream(&
+&       3)*bcdata(mm)%norm(i, j, 3)
+      vectnormd(1) = veldirfreestreamd(1) - bcdata(mm)%norm(i, j, 1)*&
+&       vectnormprodd
+      vectnorm(1) = veldirfreestream(1) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 1)
+      vectnormd(2) = veldirfreestreamd(2) - bcdata(mm)%norm(i, j, 2)*&
+&       vectnormprodd
+      vectnorm(2) = veldirfreestream(2) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 2)
+      vectnormd(3) = veldirfreestreamd(3) - bcdata(mm)%norm(i, j, 3)*&
+&       vectnormprodd
+      vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 3)
+      sensord = vd(1)*vectnorm(1) + v(1)*vectnormd(1) + vd(2)*vectnorm(2&
+&       ) + v(2)*vectnormd(2) + vd(3)*vectnorm(3) + v(3)*vectnormd(3)
+      sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
+      sensord = -sensord
+      sensor = 1 - sensor
+      arg1d = 2*sepsensorsharpness*sensord
+      arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
+      arg2d = -(2*sepsensorsharpness*sensord)
+      arg2 = 2*sepsensorsharpness*(-sensor+sepsensoroffset)
+      sensord = (sensord*(one+exp(arg1))-sensor*arg1d*exp(arg1))/(one+&
+&       exp(arg1))**2 - one*arg2d*exp(arg2)/(one+exp(arg2))**2
+      sensor = sensor/(one+exp(arg1)) + one/(one+exp(arg2))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensord = blk*(sensord*cellarea+sensor*cellaread)
       sensor = sensor*cellarea*blk
@@ -1342,8 +1371,9 @@ contains
     integer(kind=inttype) :: i, j, ii, blk
     real(kind=realtype) :: pm1, fx, fy, fz, fn
     real(kind=realtype) :: xc, yc, zc, qf(3), r(3), n(3), l
-    real(kind=realtype) :: fact, rho, mul, yplus, dwall
-    real(kind=realtype) :: v(3), sensor, sensor1, cp, tmp, plocal
+    real(kind=realtype) :: fact, rho, mul, yplus, dwall, vectnormprod
+    real(kind=realtype) :: v(3), sensor, sensor1, cp, tmp, plocal, &
+&   vectnorm(3)
     real(kind=realtype) :: tauxx, tauyy, tauzz
     real(kind=realtype) :: tauxy, tauxz, tauyz
     real(kind=realtype), dimension(3) :: refpoint
@@ -1357,6 +1387,7 @@ contains
     intrinsic exp
     real(kind=realtype) :: arg1
     real(kind=realtype) :: result1
+    real(kind=realtype) :: arg2
     select case  (bcfaceid(mm)) 
     case (imin, jmin, kmin) 
       fact = -one
@@ -1487,8 +1518,20 @@ contains
       sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
 &       veldirfreestream(3))
 !now run through a smooth heaviside function:
-      arg1 = -(2*sepsensorsharpness*(sensor-sepsensoroffset))
-      sensor = one/(one+exp(arg1))
+      vectnormprod = veldirfreestream(1)*bcdata(mm)%norm(i, j, 1) + &
+&       veldirfreestream(2)*bcdata(mm)%norm(i, j, 2) + veldirfreestream(&
+&       3)*bcdata(mm)%norm(i, j, 3)
+      vectnorm(1) = veldirfreestream(1) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 1)
+      vectnorm(2) = veldirfreestream(2) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 2)
+      vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
+&       , j, 3)
+      sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
+      sensor = 1 - sensor
+      arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
+      arg2 = 2*sepsensorsharpness*(-sensor+sepsensoroffset)
+      sensor = sensor/(one+exp(arg1)) + one/(one+exp(arg2))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
