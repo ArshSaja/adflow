@@ -416,7 +416,8 @@ contains
             +         xx(i,j+1,2) + xx(i+1,j+1,2)) - refPoint(2)
        zc = fourth*(xx(i,j,  3) + xx(i+1,j,  3) &
             +         xx(i,j+1,3) + xx(i+1,j+1,3)) - refPoint(3)
-
+     
+        print *,xc,yc,zc
        ! Compute the force components.
        blk = max(BCData(mm)%iblank(i,j), 0)
        fx = pm1*ssi(i,j,1)
@@ -476,11 +477,7 @@ contains
        v(2) = ww2(i, j, ivy)
        v(3) = ww2(i, j, ivz)
        v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
-
-       ! Dot product with free stream
-
-       sensor = -(v(1)*velDirFreeStream(1) + v(2)*velDirFreeStream(2) + &
-            v(3)*velDirFreeStream(3))
+     
 
        !Now run through a smooth heaviside function:
        vectnormprod = velDirFreeStream(1)*BCData(mm)%norm(i,j,1) + &
@@ -493,10 +490,11 @@ contains
        
        sensor = (v(1)*vectnorm(1) + v(2)*vectnorm(2) + &
             v(3)*vectnorm(3))
+       print *,sensor
        sensor = 1-sensor     
        sensor =sensor/(one + exp(2*sepSensorSharpness*(sensor-sepSensorOffset))) &
         + one/(one + exp(2*sepSensorSharpness*(-sensor+sepSensorOffset)))
-       
+        print *,sensor,vectnormprod
        ! And integrate over the area of this cell and save, blanking as we go.
        sensor = sensor * cellArea * blk
        sepSensor = sepSensor + sensor

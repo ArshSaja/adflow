@@ -1201,6 +1201,7 @@ contains
 &       2)) - refpoint(2)
       zc = fourth*(xx(i, j, 3)+xx(i+1, j, 3)+xx(i, j+1, 3)+xx(i+1, j+1, &
 &       3)) - refpoint(3)
+      print*, xc, yc, zc
       if (bcdata(mm)%iblank(i, j) .lt. 0) then
         blk = 0
       else
@@ -1253,9 +1254,6 @@ contains
       v(2) = ww2(i, j, ivy)
       v(3) = ww2(i, j, ivz)
       v = v/(sqrt(v(1)**2+v(2)**2+v(3)**2)+1e-16)
-! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
 !now run through a smooth heaviside function:
       vectnormprod = veldirfreestream(1)*bcdata(mm)%norm(i, j, 1) + &
 &       veldirfreestream(2)*bcdata(mm)%norm(i, j, 2) + veldirfreestream(&
@@ -1267,10 +1265,12 @@ contains
       vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
+      print*, sensor
       sensor = 1 - sensor
       sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
 &       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
 &       sepsensoroffset)))
+      print*, sensor, vectnormprod
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
@@ -1569,7 +1569,6 @@ contains
       tmp0 = v/(sqrt(v(1)**2+v(2)**2+v(3)**2)+1e-16)
       call pushreal8array(v, 3)
       v = tmp0
-! dot product with free stream
 !now run through a smooth heaviside function:
       vectnormprod = veldirfreestream(1)*bcdata(mm)%norm(i, j, 1) + &
 &       veldirfreestream(2)*bcdata(mm)%norm(i, j, 2) + veldirfreestream(&
@@ -1915,6 +1914,7 @@ contains
 &       2)) - refpoint(2)
       zc = fourth*(xx(i, j, 3)+xx(i+1, j, 3)+xx(i, j+1, 3)+xx(i+1, j+1, &
 &       3)) - refpoint(3)
+      print*, xc, yc, zc
       if (bcdata(mm)%iblank(i, j) .lt. 0) then
         blk = 0
       else
@@ -1967,9 +1967,6 @@ contains
       v(2) = ww2(i, j, ivy)
       v(3) = ww2(i, j, ivz)
       v = v/(sqrt(v(1)**2+v(2)**2+v(3)**2)+1e-16)
-! dot product with free stream
-      sensor = -(v(1)*veldirfreestream(1)+v(2)*veldirfreestream(2)+v(3)*&
-&       veldirfreestream(3))
 !now run through a smooth heaviside function:
       vectnormprod = veldirfreestream(1)*bcdata(mm)%norm(i, j, 1) + &
 &       veldirfreestream(2)*bcdata(mm)%norm(i, j, 2) + veldirfreestream(&
@@ -1981,10 +1978,12 @@ contains
       vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
+      print*, sensor
       sensor = 1 - sensor
       sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
 &       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
 &       sepsensoroffset)))
+      print*, sensor, vectnormprod
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
