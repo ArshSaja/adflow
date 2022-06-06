@@ -383,7 +383,6 @@ contains
 &       2)) - refpoint(2)
       zc = fourth*(xx(i, j, 3)+xx(i+1, j, 3)+xx(i, j+1, 3)+xx(i+1, j+1, &
 &       3)) - refpoint(3)
-      print*, xc, yc, zc
       if (bcdata(mm)%iblank(i, j) .lt. 0) then
         blk = 0
       else
@@ -447,17 +446,10 @@ contains
       vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
-      print*, sensor
       sensor = one - sensor
-      print*, sensor
-      print*, sepsensorsharpness, sepsensoroffset
-      print*, sensor/(one+exp(2*sepsensorsharpness*(sensor-&
-&     sepsensoroffset))), one/(one+exp(2*sepsensorsharpness*(-sensor+&
-&     sepsensoroffset)))
       sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
 &       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
 &       sepsensoroffset)))
-      print*, sensor, vectnormprod
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor

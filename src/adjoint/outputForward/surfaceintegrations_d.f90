@@ -979,7 +979,6 @@ contains
 &       j+1, 3)) - refpointd(3)
       zc = fourth*(xx(i, j, 3)+xx(i+1, j, 3)+xx(i, j+1, 3)+xx(i+1, j+1, &
 &       3)) - refpoint(3)
-      print*, xc, yc, zc
       if (bcdata(mm)%iblank(i, j) .lt. 0) then
         blk = 0
       else
@@ -1100,14 +1099,8 @@ contains
       sensord = vd(1)*vectnorm(1) + v(1)*vectnormd(1) + vd(2)*vectnorm(2&
 &       ) + v(2)*vectnormd(2) + vd(3)*vectnorm(3) + v(3)*vectnormd(3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
-      print*, sensor
       sensord = -sensord
       sensor = one - sensor
-      print*, sensor
-      print*, sepsensorsharpness, sepsensoroffset
-      arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
-      arg2 = 2*sepsensorsharpness*(-sensor+sepsensoroffset)
-      print*, sensor/(one+exp(arg1)), one/(one+exp(arg2))
       arg1d = 2*sepsensorsharpness*sensord
       arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
       arg2d = -(2*sepsensorsharpness*sensord)
@@ -1115,7 +1108,6 @@ contains
       sensord = (sensord*(one+exp(arg1))-sensor*arg1d*exp(arg1))/(one+&
 &       exp(arg1))**2 - one*arg2d*exp(arg2)/(one+exp(arg2))**2
       sensor = sensor/(one+exp(arg1)) + one/(one+exp(arg2))
-      print*, sensor, vectnormprod
 ! and integrate over the area of this cell and save, blanking as we go.
       sensord = blk*(sensord*cellarea+sensor*cellaread)
       sensor = sensor*cellarea*blk
@@ -1464,7 +1456,6 @@ contains
 &       2)) - refpoint(2)
       zc = fourth*(xx(i, j, 3)+xx(i+1, j, 3)+xx(i, j+1, 3)+xx(i+1, j+1, &
 &       3)) - refpoint(3)
-      print*, xc, yc, zc
       if (bcdata(mm)%iblank(i, j) .lt. 0) then
         blk = 0
       else
@@ -1531,17 +1522,10 @@ contains
       vectnorm(3) = veldirfreestream(3) - vectnormprod*bcdata(mm)%norm(i&
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
-      print*, sensor
       sensor = one - sensor
-      print*, sensor
-      print*, sepsensorsharpness, sepsensoroffset
-      arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
-      arg2 = 2*sepsensorsharpness*(-sensor+sepsensoroffset)
-      print*, sensor/(one+exp(arg1)), one/(one+exp(arg2))
       arg1 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
       arg2 = 2*sepsensorsharpness*(-sensor+sepsensoroffset)
       sensor = sensor/(one+exp(arg1)) + one/(one+exp(arg2))
-      print*, sensor, vectnormprod
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
