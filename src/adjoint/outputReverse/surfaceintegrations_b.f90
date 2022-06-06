@@ -1100,10 +1100,10 @@ contains
     intrinsic exp
     real(kind=realtype), dimension(3) :: tmp0
     integer :: branch
-    real(kind=realtype) :: temp3
     real(kind=realtype) :: tempd14
-    real(kind=realtype) :: temp2
+    real(kind=realtype) :: temp3
     real(kind=realtype) :: tempd13
+    real(kind=realtype) :: temp2
     real(kind=realtype) :: temp1
     real(kind=realtype) :: tempd12
     real(kind=realtype) :: temp0
@@ -1127,13 +1127,9 @@ contains
     real(kind=realtype) :: tempd21
     real(kind=realtype) :: tempd20
     real(kind=realtype) :: temp
-    real(kind=realtype) :: temp8
     real(kind=realtype) :: tempd19
-    real(kind=realtype) :: temp7
     real(kind=realtype) :: tempd18
-    real(kind=realtype) :: temp6
     real(kind=realtype) :: tempd17
-    real(kind=realtype) :: temp5
     real(kind=realtype) :: tempd16
     real(kind=realtype) :: temp4
     real(kind=realtype) :: tempd15
@@ -1265,9 +1261,8 @@ contains
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
       sensor = one - sensor
-      sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
-&       sepsensoroffset)))
+!sensor =sensor/(one + exp(2*sepsensorsharpness*(sensor-sepsensoroffset))) &
+!+ one/(one + exp(2*sepsensorsharpness*(-sensor+sepsensoroffset)))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
@@ -1578,10 +1573,8 @@ contains
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
       sensor = one - sensor
-      call pushreal8(sensor)
-      sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
-&       sepsensoroffset)))
+!sensor =sensor/(one + exp(2*sepsensorsharpness*(sensor-sepsensoroffset))) &
+!+ one/(one + exp(2*sepsensorsharpness*(-sensor+sepsensoroffset)))
 ! and integrate over the area of this cell and save, blanking as we go.
       call pushreal8(sensor)
       sensor = sensor*cellarea*blk
@@ -1606,15 +1599,15 @@ contains
         cellaread = blk*sensor1*sensor1d
         sensor1d = blk*cellarea*sensor1d
         call popreal8(sensor1)
-        temp8 = -(10*2*sensor1)
-        temp7 = one + exp(temp8)
-        sensor1d = exp(temp8)*one*10*2*sensor1d/temp7**2
+        temp4 = -(10*2*sensor1)
+        temp3 = one + exp(temp4)
+        sensor1d = exp(temp4)*one*10*2*sensor1d/temp3**2
         cpd = -sensor1d
         tmpd = (plocal-pinf)*cpd
         plocald = tmp*cpd
         pinfd = pinfd - tmp*cpd
-        temp6 = gammainf*machcoef**2
-        machcoefd = machcoefd - gammainf*two*2*machcoef*tmpd/temp6**2
+        temp2 = gammainf*machcoef**2
+        machcoefd = machcoefd - gammainf*two*2*machcoef*tmpd/temp2**2
         tmp = two/(gammainf*pinf*machcoef*machcoef)
         pp2d(i, j) = pp2d(i, j) + plocald
       else
@@ -1653,13 +1646,6 @@ contains
       call popreal8(sensor)
       cellaread = cellaread + blk*sensor*sensord
       sensord = blk*cellarea*sensord
-      call popreal8(sensor)
-      temp5 = 2*sepsensorsharpness*(sensor-sepsensoroffset)
-      temp4 = one + exp(temp5)
-      temp3 = 2*sepsensorsharpness*(sepsensoroffset-sensor)
-      temp2 = one + exp(temp3)
-      sensord = (sepsensorsharpness*2*exp(temp3)*one/temp2**2-exp(temp5)&
-&       *sensor*sepsensorsharpness*2/temp4**2+1.0/temp4)*sensord
       sensord = -sensord
       vd(1) = vd(1) + vectnorm(1)*sensord
       vectnormd(1) = vectnormd(1) + v(1)*sensord
@@ -1975,9 +1961,8 @@ contains
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
       sensor = one - sensor
-      sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
-&       sepsensoroffset)))
+!sensor =sensor/(one + exp(2*sepsensorsharpness*(sensor-sepsensoroffset))) &
+!+ one/(one + exp(2*sepsensorsharpness*(-sensor+sepsensoroffset)))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor

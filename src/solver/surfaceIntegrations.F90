@@ -492,8 +492,8 @@ contains
 
        sensor = one-sensor 
      
-       sensor =sensor/(one + exp(2*sepSensorSharpness*(sensor-sepSensorOffset))) &
-        + one/(one + exp(2*sepSensorSharpness*(-sensor+sepSensorOffset)))
+       !sensor =sensor/(one + exp(2*sepSensorSharpness*(sensor-sepSensorOffset))) &
+       !+ one/(one + exp(2*sepSensorSharpness*(-sensor+sepSensorOffset)))
         
        ! And integrate over the area of this cell and save, blanking as we go.
        sensor = sensor * cellArea * blk

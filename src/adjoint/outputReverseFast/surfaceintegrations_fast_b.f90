@@ -447,9 +447,8 @@ contains
 &       , j, 3)
       sensor = v(1)*vectnorm(1) + v(2)*vectnorm(2) + v(3)*vectnorm(3)
       sensor = one - sensor
-      sensor = sensor/(one+exp(2*sepsensorsharpness*(sensor-&
-&       sepsensoroffset))) + one/(one+exp(2*sepsensorsharpness*(-sensor+&
-&       sepsensoroffset)))
+!sensor =sensor/(one + exp(2*sepsensorsharpness*(sensor-sepsensoroffset))) &
+!+ one/(one + exp(2*sepsensorsharpness*(-sensor+sepsensoroffset)))
 ! and integrate over the area of this cell and save, blanking as we go.
       sensor = sensor*cellarea*blk
       sepsensor = sepsensor + sensor
