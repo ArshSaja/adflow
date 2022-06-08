@@ -6194,14 +6194,14 @@ end subroutine cross_prod
           case (cgnsSepSensor)
              write(*,"(a)",advance="no") "        SepSensor       |"
 
+          case (cgnsSepConstraint)
+             write(*,"(a)",advance="no") "        SepConstraint   |"
+
           case (cgnsCavitation)
              write(*,"(a)",advance="no") "       Cavitation       |"
 
           case (cgnsAxisMoment)
              write(*,"(a)",advance="no") "       AxisMoment       |"
-
-          case (cgnsSepConstraint)
-             write(*,"(a)",advance="no") "        SepConstraint   |"
 
           end select
 #else
@@ -6299,14 +6299,14 @@ end subroutine cross_prod
          case (cgnsSepSensor)
             write(*,"(a)",advance="no") "                    SepSensor                    |"
 
+         case (cgnsSepConstraint)
+            write(*,"(a)",advance="no") "                    SepConstraint                |"
+
          case (cgnsCavitation)
             write(*,"(a)",advance="no") "                   Cavitation                    |"
 
          case (cgnsAxisMoment)
             write(*,"(a)",advance="no") "                   AxisMoment                    |"
-
-         case (cgnsSepConstraint)
-            write(*,"(a)",advance="no") "                    SepConstraint                |"
 
          end select
 #endif
