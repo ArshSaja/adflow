@@ -166,8 +166,8 @@ contains
     if( surfWriteBlank )    nSolVar = nSolVar +1
     if( surfWriteSepSensor )      nSolVar = nSolVar +1
     if( surfWriteSepConstraint )      nSolVar = nSolVar +1
-    if( surfWriteCavitation )     nsolVar = nsolVar +1
-    if( surfWriteGC )             nsolVar = nsolVar +1
+    if( surfWriteCavitation )     nSolVar = nSolVar +1
+    if( surfWriteGC )             nSolVar = nSolVar +1
 
   end subroutine numberOfSurfSolVariables
 
@@ -701,11 +701,6 @@ contains
        solNames(nn) = cgnsSepSensor
     end if
 
-    if (surfWriteSepConstraint) then
-       nn = nn + 1
-       solNames(nn) = cgnsSepConstraint
-    end if
-
     if (surfWriteCavitation) then
        nn = nn + 1
        solNames(nn) = cgnsCavitation
@@ -714,6 +709,11 @@ contains
     if (surfWriteAxisMoment) then
        nn = nn + 1
        solNames(nn) = cgnsAxisMoment
+    end if
+
+    if (surfWriteSepConstraint) then
+       nn = nn + 1
+       solNames(nn) = cgnsSepConstraint
     end if
 
     if (surfWriteGC) then
@@ -1434,7 +1434,7 @@ contains
     real(kind=realType) :: tauxy, tauxz, tauyz
     real(kind=realType) :: pm1, a, sensor, plocal, sensor1
     real(kind=realType) :: vectCorrected(3), vecCrossProd(3), vectNorm(3)
-    real(kind=realType) :: vectNormProd, sensorVal, sepConstraint
+    real(kind=realType) :: vectNormProd, sensorVal
     real(kind=realType), dimension(3) :: norm, V
 
     real(kind=realType), dimension(:,:,:), pointer :: ww1, ww2
@@ -2204,6 +2204,22 @@ contains
           enddo
        enddo
 
+    case (cgnsCavitation)
+       fact = two/(gammaInf*pInf*MachCoef*MachCoef)
+       do j=rangeFace(2,1), rangeFace(2,2)
+          do i=rangeFace(1,1), rangeFace(1,2)
+
+             nn = nn + 1
+             ! Get local pressure
+             plocal = half*(pp1(i,j) + pp2(i,j))
+
+             sensor1 = (-(fact)*(plocal-pInf))- cavitationnumber
+             sensor1 = one/(one + exp(-2*10*sensor1))
+             buffer(nn) = sensor1
+             !print*, sensor
+          enddo
+       enddo
+
     case (cgnsSepConstraint)
 
        do j=rangeFace(2,1), rangeFace(2,2)
@@ -2249,24 +2265,8 @@ contains
                v(3)*vectCorrected(3))
        
             sensorVal = one/two*(one - sensorVal)
-
+             print*,sensorVal
              buffer(nn) = sensorVal
-          enddo
-       enddo
-
-    case (cgnsCavitation)
-       fact = two/(gammaInf*pInf*MachCoef*MachCoef)
-       do j=rangeFace(2,1), rangeFace(2,2)
-          do i=rangeFace(1,1), rangeFace(1,2)
-
-             nn = nn + 1
-             ! Get local pressure
-             plocal = half*(pp1(i,j) + pp2(i,j))
-
-             sensor1 = (-(fact)*(plocal-pInf))- cavitationnumber
-             sensor1 = one/(one + exp(-2*10*sensor1))
-             buffer(nn) = sensor1
-             !print*, sensor
           enddo
        enddo
     end select varName

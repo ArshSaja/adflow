@@ -291,14 +291,14 @@ contains
 
        case(cgnsSepSensor)
           sortNumber(i) = 114
-        
-       case(cgnsSepConstraint)
-          sortNumber(i) = 115
 
        case (cgnsCavitation)
-          sortNumber(i) = 116
+          sortNumber(i) = 115
 
        case(cgnsAxisMoment)
+          sortNumber(i) = 116
+
+       case(cgnsSepConstraint)
           sortNumber(i) = 117
 
        case (cgnsHdiffMax)
@@ -1439,7 +1439,7 @@ contains
     !
     !      Local parameter.
     !
-    integer(kind=intType), parameter :: nVarMax = 21
+    integer(kind=intType), parameter :: nVarMax = 22
     !
     !      Local variables.
     !
@@ -1600,10 +1600,6 @@ contains
        case("sepsensor")
           nMon = nMon + 1; nMonSum = nMonSum + 1
           tmpNames(nMon) = cgnsSepSensor
-       
-       case("sepconstraint")
-          nMon = nMon + 1; nMonSum = nMonSum + 1
-          tmpNames(nMon) = cgnsSepConstraint
 
        case("cavitation")
           nMon = nMon + 1; nMonSum = nMonSum + 1
@@ -1612,6 +1608,10 @@ contains
        case("axismoment")
           nMon = nMon + 1; nMonSum = nMonSum + 1
           tmpNames(nMon) = cgnsAxisMoment
+
+       case("sepconstraint")
+          nMon = nMon + 1; nMonSum = nMonSum + 1
+          tmpNames(nMon) = cgnsSepConstraint
 
        case default
           write(errorMessage,"(3a)") "Unknown monitoring variable, ", &
@@ -2335,6 +2335,7 @@ contains
     character(len=maxStringLen) :: errorMessage
 
     ! Convert the string variables to lower case.
+    
 
     call convertToLowerCase(variables)
 
@@ -2392,7 +2393,7 @@ contains
           keyword   = variables(:pos-1)
           variables = variables(pos+1:)
        endif
-
+       print*, 'nval',keyword
        ! Check the keyword.
 
        select case (keyword)
@@ -2482,10 +2483,6 @@ contains
        case ("sepsensor")
           surfWriteSepSensor = .true.
           nVarSpecified = nVarSpecified + 1
-       
-       case ("sepconstraint")
-          surfWriteSepConstraint = .true.
-          nVarSpecified = nVarSpecified + 1
 
        case ("cavitation")
           surfWriteCavitation = .true.
@@ -2493,6 +2490,10 @@ contains
 
        case ("axismoment")
           surfWriteAxisMoment = .true.
+          nVarSpecified = nVarSpecified + 1
+
+       case ("sepconstraint")
+          surfWriteSepConstraint = .true.
           nVarSpecified = nVarSpecified + 1
 
        case ("gc")
