@@ -111,15 +111,14 @@ contains
     ! solution file as well as the cgns names.
 
     call numberOfSurfSolVariables(nSolVar)
-    print*,'nSolVar', nSolVar
-    
+
     allocate(solNames(nSolVar), stat=ierr)
     if(ierr /= 0)                           &
          call terminate("writeCGNSSurfaceSol", &
          "Memory allocation failure for solNames")
 
     call surfSolNames(solNames)
-    print*,'nSurfSolToWrite', solNames
+
     ! Based on the famList generate the list of strings corresponding
     ! to the families we want to write.
     allocate(famListStr(size(famList)))
