@@ -691,6 +691,11 @@ contains
        solNames(nn) = cgnsSkinFz
     endif
 
+    if (surfWriteSepConstraint) then
+       nn = nn + 1
+       solNames(nn) = cgnsSepConstraint
+    end if
+
     if( surfWriteBlank ) then
        nn = nn + 1
        solNames(nn) = cgnsBlank
@@ -699,11 +704,6 @@ contains
     if (surfWriteSepSensor) then
        nn = nn + 1
        solNames(nn) = cgnsSepSensor
-    end if
-
-    if (surfWriteSepConstraint) then
-       nn = nn + 1
-       solNames(nn) = cgnsSepConstraint
     end if
 
     if (surfWriteCavitation) then
@@ -1484,7 +1484,7 @@ contains
        select case (solName)
 
        case (cgnsSkinFmag, cgnsStanton, cgnsYplus, &
-            cgnsSkinFx, cgnsSkinFy, cgnsSkinFz)
+            cgnsSkinFx, cgnsSkinFy, cgnsSkinFz, cgnsSepConstraint)
 
           ! Update the counter and set this entry of buffer to 0.
 
@@ -1981,7 +1981,7 @@ contains
        !        ================================================================
 
     case (cgnsSkinFmag, cgnsYplus, &
-         cgnsSkinFx, cgnsSkinFy, cgnsSkinFz)
+         cgnsSkinFx, cgnsSkinFy, cgnsSkinFz, cgnsSepConstraint)
 
        ! To avoid a lot of code duplication these 5 variables are
        ! treated together.
@@ -2048,11 +2048,11 @@ contains
              ! present, because of the definition of the viscous
              ! stress tensor. Note that in the normal the indices i
              ! and j could be used. However this is not done.
-
+             print*, 'check1pre'
              norm(1) = BCData(mm)%norm(ii,jj,1)
              norm(2) = BCData(mm)%norm(ii,jj,2)
              norm(3) = BCData(mm)%norm(ii,jj,3)
-
+             print*, 'check2pre'
              fx = -(tauxx*norm(1) + tauxy*norm(2) + tauxz*norm(3))
              fy = -(tauxy*norm(1) + tauyy*norm(2) + tauyz*norm(3))
              fz = -(tauxz*norm(1) + tauyz*norm(2) + tauzz*norm(3))
@@ -2088,6 +2088,49 @@ contains
                 musurf     = half*(rlv1(ii,jj)     + rlv2(ii,jj))
                 buffer(nn) = sqrt(rsurf*sqrt(fx*fx + fy*fy + fz*fz)) &
                      * dd2Wall(ii-1,jj-1)/musurf
+
+             case (cgnsSepConstraint)
+
+                v(1) = ww2(ii, jj, ivx)
+                v(2) = ww2(ii, jj, ivy)
+                v(3) = ww2(ii, jj, ivz)
+
+                ! Normalize
+                v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
+               print*, 'check1'
+               vectNormProd = velDirFreeStream(1)*norm(1) + &
+               velDirFreeStream(2)*norm(2) + &
+               velDirFreeStream(3)*norm(3)
+     
+               vectNorm(1) =velDirFreeStream(1) - vectNormProd * norm(1)
+               vectNorm(2) =velDirFreeStream(2) - vectNormProd * norm(2)
+               vectNorm(3) =velDirFreeStream(3) - vectNormProd * norm(3)
+               print*, 'check2'
+               ! compute cross product of vectnorm to surface normal
+               vecCrossProd(1) = vectNorm(2)*norm(3) - &
+                  vectNorm(3)*norm(2)
+               vecCrossProd(2) = vectNorm(3)*norm(1) - &
+                  vectNorm(1)*norm(3)
+               vecCrossProd(3) = vectNorm(1)*norm(2) - &
+                  vectNorm(2)*norm(1)
+               print*, 'check3'
+               ! do the sweep angle correction
+               vectCorrected(1) = cos(degtorad*sweepAngleCorrection) *vectNorm(1) + &
+                  sin(degtorad*sweepAngleCorrection) * vecCrossProd(1)
+       
+               vectCorrected(2) = cos(degtorad*sweepAngleCorrection) *vectNorm(2) + &
+                  sin(degtorad*sweepAngleCorrection) * vecCrossProd(2)
+       
+               vectCorrected(3) = cos(degtorad*sweepAngleCorrection) *vectNorm(3) + &
+                  sin(degtorad*sweepAngleCorrection) * vecCrossProd(3)
+
+               print*, 'check4'
+               sensorVal = (v(1)*vectCorrected(1) + v(2)*vectCorrected(2) + &
+                  v(3)*vectCorrected(3))
+       
+               sensorVal = one/two*(one - sensorVal)
+
+               buffer(nn) = sensorVal
              end select
 
           enddo
@@ -2204,55 +2247,55 @@ contains
           enddo
        enddo
 
-    case (cgnsSepConstraint)
+   !  case (cgnsSepConstraint)
 
-       do j=rangeFace(2,1), rangeFace(2,2)
-          do i=rangeFace(1,1), rangeFace(1,2)
-             nn = nn + 1
+   !     do j=rangeFace(2,1), rangeFace(2,2)
+   !        do i=rangeFace(1,1), rangeFace(1,2)
+   !           nn = nn + 1
 
-             ! Get normalized surface velocity:
-             v(1) = ww2(i, j, ivx)
-             v(2) = ww2(i, j, ivy)
-             v(3) = ww2(i, j, ivz)
+   !           ! Get normalized surface velocity:
+   !           v(1) = ww2(i, j, ivx)
+   !           v(2) = ww2(i, j, ivy)
+   !           v(3) = ww2(i, j, ivz)
 
-             ! Normalize
-             v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
+   !           ! Normalize
+   !           v = v / (sqrt(v(1)**2 + v(2)**2 + v(3)**2) + 1e-16)
 
-             vectNormProd = velDirFreeStream(1)*BCData(mm)%norm(i,j,1) + &
-             velDirFreeStream(2)*BCData(mm)%norm(i,j,2) + &
-             velDirFreeStream(3)*BCData(mm)%norm(i,j,3)
+   !           vectNormProd = velDirFreeStream(1)*BCData(mm)%norm(i,j,1) + &
+   !           velDirFreeStream(2)*BCData(mm)%norm(i,j,2) + &
+   !           velDirFreeStream(3)*BCData(mm)%norm(i,j,3)
      
-             vectNorm(1) =velDirFreeStream(1) - vectNormProd * BCData(mm)%norm(i,j,1)
-             vectNorm(2) =velDirFreeStream(2) - vectNormProd * BCData(mm)%norm(i,j,2)
-             vectNorm(3) =velDirFreeStream(3) - vectNormProd * BCData(mm)%norm(i,j,3)
+   !           vectNorm(1) =velDirFreeStream(1) - vectNormProd * BCData(mm)%norm(i,j,1)
+   !           vectNorm(2) =velDirFreeStream(2) - vectNormProd * BCData(mm)%norm(i,j,2)
+   !           vectNorm(3) =velDirFreeStream(3) - vectNormProd * BCData(mm)%norm(i,j,3)
        
-             ! compute cross product of vectnorm to surface normal
-             vecCrossProd(1) = vectNorm(2)*BCData(mm)%norm(i,j,3) - &
-               vectNorm(3)*BCData(mm)%norm(i,j,2)
-             vecCrossProd(2) = vectNorm(3)*BCData(mm)%norm(i,j,1) - &
-               vectNorm(1)*BCData(mm)%norm(i,j,3)
-             vecCrossProd(3) = vectNorm(1)*BCData(mm)%norm(i,j,2) - &
-               vectNorm(2)*BCData(mm)%norm(i,j,1)
+   !           ! compute cross product of vectnorm to surface normal
+   !           vecCrossProd(1) = vectNorm(2)*BCData(mm)%norm(i,j,3) - &
+   !             vectNorm(3)*BCData(mm)%norm(i,j,2)
+   !           vecCrossProd(2) = vectNorm(3)*BCData(mm)%norm(i,j,1) - &
+   !             vectNorm(1)*BCData(mm)%norm(i,j,3)
+   !           vecCrossProd(3) = vectNorm(1)*BCData(mm)%norm(i,j,2) - &
+   !             vectNorm(2)*BCData(mm)%norm(i,j,1)
        
-             ! do the sweep angle correction
-             vectCorrected(1) = cos(degtorad*sweepAngleCorrection) *vectNorm(1) + &
-               sin(degtorad*sweepAngleCorrection) * vecCrossProd(1)
+   !           ! do the sweep angle correction
+   !           vectCorrected(1) = cos(degtorad*sweepAngleCorrection) *vectNorm(1) + &
+   !             sin(degtorad*sweepAngleCorrection) * vecCrossProd(1)
        
-             vectCorrected(2) = cos(degtorad*sweepAngleCorrection) *vectNorm(2) + &
-               sin(degtorad*sweepAngleCorrection) * vecCrossProd(2)
+   !           vectCorrected(2) = cos(degtorad*sweepAngleCorrection) *vectNorm(2) + &
+   !             sin(degtorad*sweepAngleCorrection) * vecCrossProd(2)
        
-             vectCorrected(3) = cos(degtorad*sweepAngleCorrection) *vectNorm(3) + &
-               sin(degtorad*sweepAngleCorrection) * vecCrossProd(3)
+   !           vectCorrected(3) = cos(degtorad*sweepAngleCorrection) *vectNorm(3) + &
+   !             sin(degtorad*sweepAngleCorrection) * vecCrossProd(3)
 
 
-            sensorVal = (v(1)*vectCorrected(1) + v(2)*vectCorrected(2) + &
-               v(3)*vectCorrected(3))
+   !          sensorVal = (v(1)*vectCorrected(1) + v(2)*vectCorrected(2) + &
+   !             v(3)*vectCorrected(3))
        
-            sensorVal = one/two*(one - sensorVal)
+   !          sensorVal = one/two*(one - sensorVal)
 
-             buffer(nn) = sensorVal
-          enddo
-       enddo
+   !           buffer(nn) = sensorVal
+   !        enddo
+   !     enddo
 
     case (cgnsCavitation)
        fact = two/(gammaInf*pInf*MachCoef*MachCoef)
