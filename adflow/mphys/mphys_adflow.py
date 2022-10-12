@@ -2,7 +2,7 @@ import numpy as np
 from pprint import pprint as pp
 
 from adflow import ADFLOW
-from idwarp import USMesh
+from idwarp import USMesh, MultiUSMesh
 
 from openmdao.api import Group, ImplicitComponent, ExplicitComponent, AnalysisError
 from mphys.builder import Builder
@@ -1143,6 +1143,7 @@ class ADflowBuilder(Builder):
         self,
         options,  # adflow options
         mesh_options=None,  # idwarp options
+        MultiUSmesh_optionsDict=None,
         scenario="aerodynamic",  # scenario type to configure the groups
         restart_failed_analysis=False,  # retry after failed analysis
         err_on_convergence_fail=False,  # raise an analysis error if the solver stalls
@@ -1166,6 +1167,13 @@ class ADflowBuilder(Builder):
                 }
         else:
             self.mesh_options = mesh_options
+
+        if MultiUSmesh_optionsDict is not None:
+            self.MultiUSmesh = True
+            self.Multimesh_options = MultiUSmesh_optionsDict
+        else:
+            self.MultiUSmesh = False
+            self.Multimesh_options = None
 
         # defaults:
 
@@ -1216,7 +1224,10 @@ class ADflowBuilder(Builder):
     # api level method for all builders
     def initialize(self, comm):
         self.solver = ADFLOW(options=self.options, comm=comm)
-        mesh = USMesh(options=self.mesh_options, comm=comm)
+        if self.MultiUSmesh:
+            mesh = MultiUSMesh(self.mesh_options["gridFile"], self.Multimesh_options, comm=comm)
+        else:
+            mesh = USMesh(options=self.mesh_options, comm=comm)
         self.solver.setMesh(mesh)
 
     def get_solver(self):
