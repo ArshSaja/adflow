@@ -1161,18 +1161,25 @@ class ADflowBuilder(Builder):
                 self.mesh_options = {
                     "gridFile": options["gridFile"],
                 }
+                self.MultiUSmeshGrid = options["gridFile"]
             elif "gridfile" in options:
                 self.mesh_options = {
                     "gridFile": options["gridfile"],
                 }
+
+                self.MultiUSmeshGrid = options["gridfile"]
+
         else:
             self.mesh_options = mesh_options
-
+            self.MultiUSmeshGrid = mesh_options["gridFile"]
+        print(self.MultiUSmeshGrid)
         if MultiUSmesh_optionsDict is not None:
             self.MultiUSmesh = True
+            # self.MultiUSmeshGrid = options["gridfile"]
             self.Multimesh_options = MultiUSmesh_optionsDict
         else:
             self.MultiUSmesh = False
+            # self.MultiUSmeshGrid = None
             self.Multimesh_options = None
 
         # defaults:
@@ -1225,7 +1232,7 @@ class ADflowBuilder(Builder):
     def initialize(self, comm):
         self.solver = ADFLOW(options=self.options, comm=comm)
         if self.MultiUSmesh:
-            mesh = MultiUSMesh(self.mesh_options["gridFile"], self.Multimesh_options, comm=comm)
+            mesh = MultiUSMesh(self.MultiUSmeshGrid, self.Multimesh_options, comm=comm)
         else:
             mesh = USMesh(options=self.mesh_options, comm=comm)
         self.solver.setMesh(mesh)
