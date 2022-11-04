@@ -2332,6 +2332,9 @@ class ADFLOW(AeroSolver):
             if self.getOption("numberSolutions"):
                 baseName = baseName + "_%3.3d" % self.curAP.adflowData.callCounter
 
+        if writeActuator:
+            self.writeActuatorRegions(base + "_actuator.plt", outputDir=outputDir)
+
         # Join to get the actual filename root
         base = os.path.join(outputDir, baseName)
 
@@ -2349,9 +2352,6 @@ class ADFLOW(AeroSolver):
 
         if self.getOption("writesurfacesolution") and numpy.mod(ts, self.getOption("nsavesurface")) == 0:
             self.writeSurfaceSolutionFile(base + "_surf.cgns")
-
-        if writeActuator:
-            self.writeActuatorRegions(base + "_actuator.plt")
 
         # ADD NSAVE TEST AROUND THESE AS WELL BUT
         # THIS IS SMALL COMPARED TO OTHER. REFACTOR
