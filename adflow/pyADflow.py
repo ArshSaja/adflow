@@ -2333,7 +2333,7 @@ class ADFLOW(AeroSolver):
                 baseName = baseName + "_%3.3d" % self.curAP.adflowData.callCounter
 
         if writeActuator:
-            self.writeActuatorRegions(base + "_actuator.plt", outputDir=outputDir)
+            self.writeActuatorRegions(baseName + "_actuator.plt", outputDir=outputDir)
 
         # Join to get the actual filename root
         base = os.path.join(outputDir, baseName)
