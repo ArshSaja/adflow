@@ -2297,7 +2297,7 @@ class ADFLOW(AeroSolver):
             if abs(fnm1) < tol:
                 break
 
-    def writeSolution(self, outputDir=None, baseName=None, number=None):
+    def writeSolution(self, outputDir=None, baseName=None, number=None, writeActuator=False):
         """This is a generic shell function that potentially writes
         the various output files. The intent is that the user or
         calling program can call this file and ADflow write all the
@@ -2349,6 +2349,9 @@ class ADFLOW(AeroSolver):
 
         if self.getOption("writesurfacesolution") and numpy.mod(ts, self.getOption("nsavesurface")) == 0:
             self.writeSurfaceSolutionFile(base + "_surf.cgns")
+
+        if writeActuator:
+            self.writeActuatorRegions(base + "_actuator.plt")
 
         # ADD NSAVE TEST AROUND THESE AS WELL BUT
         # THIS IS SMALL COMPARED TO OTHER. REFACTOR
