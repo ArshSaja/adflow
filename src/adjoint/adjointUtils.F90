@@ -1337,17 +1337,25 @@ contains
 
         real(kind=realType), pointer, dimension(:, :) :: myKsp
         integer(kind=intType) :: n, dummy, ierr
-        real(kind=realType) :: rnorm
+        real(kind=realType) :: rnorm, current_time, elapsed_time
 
         ! Write the residual norm to stdout every adjMonStep iterations.
 
-        if (mod(n, adjMonStep) == 0) then
-            if (myid == 0) write (*, "(I4, 1X, A, 1X, ES16.10)") n, 'KSP Residual norm', rnorm
+        ! compute elapsed time
+        call cpu_time(current_time)
+        elapsed_time = current_time - direct_solve_start
+
+        if(mod(n, adjMonStep) ==0 ) then
+        if( myid==0 ) write(*, 10) n, rnorm, elapsed_time
         end if
 
         ierr = 0
 
-    end subroutine MyKSPMonitor
+    ! Output format.
+
+10  format(i4, 1x, 'KSP Residual norm', 1x, es16.10, 1x, 'elapsed time', 1x, f8.3)
+
+  end subroutine MyKSPMonitor
 
     subroutine setupStandardKSP(kspObject, kspObjectType, gmresRestart, preConSide, &
                                 globalPCType, ASMOverlap, globalPreConIts, localPCType, &

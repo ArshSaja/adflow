@@ -3679,10 +3679,10 @@ contains
         use constants
         use blockPointers, only: nDom, flowDoms, shockSensor, ib, jb, kb, p, w, gamma
         use inputPhysics, only: equations
-        use inputIteration, only: L2conv
+        use inputIteration, only: L2conv, L2convRel
         use inputTimeSpectral, only: nTimeIntervalsSpectral
         use inputDiscretization, only: lumpedDiss, approxSA, orderturb
-        use iteration, only: approxTotalIts, totalR0, totalR, stepMonitor, linResMonitor, currentLevel, iterType
+        use iteration, only: approxTotalIts, totalR0, totalR, stepMonitor, linResMonitor, currentLevel, iterType, totalRStart
         use utils, only: EChk, setPointers
         use genericISNAN, only: myisnan
         use turbAPI, only: turbSolveDDADI
@@ -3923,12 +3923,15 @@ contains
 #ifndef USE_COMPLEX
         ! in the real mode, we set the atol slightly lower than the target L2 convergence
         ! the reasoning for this is detailed in the NKStep subroutine
-        atol = totalR0 * L2Conv * 0.01_realType
+        atol = totalR0 * L2Conv * 0.1_realType
 #else
         ! in complex mode, we want to tightly solve the linear system every time
         ! again, see the NKStep subroutine for the explanation
         atol = totalR0 * L2Conv * 1e-6_realType
 #endif
+
+        ! however, exit early if we are reaching the relative l2 convergence
+        atol = max(atol, totalRStart*L2ConvRel*0.8_realType)
 
         ! Set the iteration limit to maxIt, determined by which fluxes are used.
         ! This is because ANK step require 0.1 convergence for stability during initial stages.

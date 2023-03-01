@@ -4,7 +4,7 @@ import numpy as np
 from idwarp import USMesh
 from mphys.builder import Builder
 from openmdao.api import AnalysisError, ExplicitComponent, Group, ImplicitComponent
-
+import time
 from adflow import ADFLOW
 
 from .om_utils import get_dvs_and_cons
@@ -225,6 +225,16 @@ class ADflowSolver(ImplicitComponent):
         self.add_input("adflow_vol_coords", distributed=True, shape_by_conn=True, tags=["mphys_coupling"])
         self.add_output("adflow_states", distributed=True, shape=local_state_size, tags=["mphys_coupling"])
 
+        # TODO temporary changes for the schur paper
+        self.first_call = True
+        self.l2rel_save = solver.getOption("L2ConvergenceRel")
+
+        # self.declare_partials(of='adflow_states', wrt='*')
+
+        # TODO once caching is available from openmdao, these will be removed
+        self.cached_sols = [None, None, None]
+        self.cache_counter = 0
+
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def _set_ap(self, inputs, print_dict=True):
@@ -282,6 +292,15 @@ class ADflowSolver(ImplicitComponent):
     def solve_nonlinear(self, inputs, outputs):
         solver = self.solver
         ap = self.ap
+
+        # adjust the relative L2 convergence
+        if self.first_call:
+            # first call gets 1e-4 always
+            solver.setOption("L2ConvergenceRel", 1e-4)
+            self.first_call = False
+        else:
+            solver.setOption("L2ConvergenceRel", self.l2rel_save)
+
         if self._do_solve:
             # Set the warped mesh
             # solver.mesh.setSolverGrid(inputs['adflow_vol_coords'])
@@ -292,7 +311,15 @@ class ADflowSolver(ImplicitComponent):
             ap.fatalFail = False
 
             # do not write solution files inside the solver loop
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time before CFD nonlinear solve: {time.time():.3f}", flush=True)
+
             solver(ap, writeSolution=False)
+
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time after  CFD nonlinear solve: {time.time():.3f}", flush=True)
 
             if ap.fatalFail:
                 if self.comm.rank == 0:
@@ -410,9 +437,21 @@ class ADflowSolver(ImplicitComponent):
 
         if mode == "fwd":
             if "adflow_states" in d_residuals:
+                # TODO figure out the keys in xDvDot
+                # this needs to be extended to different types of DVs
                 xDvDot = {}
-                for var_name in d_inputs:
-                    xDvDot[var_name] = d_inputs[var_name]
+                for dv_name in d_inputs:
+                    # check if this key is in AP DVs
+                    if dv_name in ap.DVs:
+                        # this could be the full name with the family or the assigned custom name
+
+                        fam = ap.DVs[dv_name].family
+                        key = ap.DVs[dv_name].key
+
+                        adflow_name = f"{key}_{fam}"
+
+                        xDvDot[adflow_name] = d_inputs[dv_name]
+
                 if "adflow_vol_coords" in d_inputs:
                     xVDot = d_inputs["adflow_vol_coords"]
                 else:
@@ -422,10 +461,18 @@ class ADflowSolver(ImplicitComponent):
                 else:
                     wDot = None
 
-                dwdot = solver.computeJacobianVectorProductFwd(
-                    xDvDot=xDvDot, xVDot=xVDot, wDot=wDot, residualDeriv=True
-                )
-                d_residuals["adflow_states"] += dwdot
+                # print(f"[{self.comm.rank}] applying linear in mphys adflow solver with", xDvDot)
+
+                if xDvDot or (xVDot is not None) or (wDot is not None):
+                    # print("Applying linear in adflow solver with", xDvDot, xVDot, wDot)
+
+                    dwdot = solver.computeJacobianVectorProductFwd(
+                        xDvDot=xDvDot, xVDot=xVDot, wDot=wDot, residualDeriv=True
+                    )
+                    # print("done applying linear in adflow")
+                    # print(f"[{self.comm.rank}] residual derivative seed", np.linalg.norm(dwdot))
+
+                    d_residuals["adflow_states"] += dwdot
 
         elif mode == "rev":
             if "adflow_states" in d_residuals:
@@ -466,13 +513,71 @@ class ADflowSolver(ImplicitComponent):
         if not solver.adjointSetup:
             solver._setupAdjoint()
 
-        if self.comm.rank == 0:
-            print("Solving linear in mphys_adflow", flush=True)
+        # if self.comm.rank == 0:
+        # print("Solving linear in mphys_adflow", flush=True)
         if mode == "fwd":
-            d_outputs["adflow_states"] = solver.solveDirectForRHS(d_residuals["adflow_states"])
+            # TODO once caching is available from the openmdao side, remove these caching calls and just use d_outputs vector as is
+
+            # check if we have a cached solution, if not, we start with zero
+            if self.cached_sols[self.cache_counter] is None:
+                if self.comm.rank == 0:
+                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
+                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+
+            # load the cached solution
+            phi = self.cached_sols[self.cache_counter].copy()
+
+            if self.comm.rank == 0:
+                print(f"Current cache counter: {self.cache_counter}")
+
+            # run the ADflow direct solver with the initial guess = our cached solution
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
+
+            solver.solveDirectForRHS(
+                d_residuals["adflow_states"], phi
+            )  # , absTol=self.abs_direct_tols[self.cache_counter])
+
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
+
+            d_outputs["adflow_states"] = phi
+
+            # cache the solution
+            self.cached_sols[self.cache_counter] = phi.copy()
+
+            # increment counter. we have 3 solutions for now
+            self.cache_counter = (self.cache_counter + 1) % 3
+            if self.comm.rank == 0:
+                print(f"New cache counter: {self.cache_counter}")
+
         elif mode == "rev":
+            # check if we have a cached solution, if not, we start with zero
+            if self.cached_sols[self.cache_counter] is None:
+                if self.comm.rank == 0:
+                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
+                self.cached_sols[self.cache_counter] = np.zeros_like(d_outputs["adflow_states"])
+
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
+
             solver.adflow.adjointapi.solveadjoint(d_outputs["adflow_states"], d_residuals["adflow_states"], True)
+
+            self.comm.barrier()
+            if self.comm.rank == 0:
+                print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
+
+            # cache the solution
+            self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
+
+            # increment counter. we have 3 solutions for now
+            self.cache_counter = (self.cache_counter + 1) % 3
+            if self.comm.rank == 0:
+                print(f"New cache counter: {self.cache_counter}")
 
         return True, 0, 0
 
@@ -934,10 +1039,23 @@ class ADflowFunctions(ExplicitComponent):
 
         if mode == "fwd":
             xDvDot = {}
-            for key in ap.DVs:
-                if key in d_inputs:
-                    mach_name = key.split("_")[0]
-                    xDvDot[mach_name] = d_inputs[key]
+
+            # TODO this needs to be fixed for all DV names in the AP. could be generic stuff like alpha, or a BC variable on a family
+            # for key in ap.DVs:
+            #     if key in d_inputs:
+            #         mach_name = key.split("_")[0]
+            #         xDvDot[mach_name] = d_inputs[key]
+
+            for dv_name in d_inputs:
+                # check if this key is in AP DVs
+                if dv_name in ap.DVs:
+                    # this could be the full name with the family or the assigned custom name
+                    fam = ap.DVs[dv_name].family
+                    key = ap.DVs[dv_name].key
+
+                    adflow_name = f"{key}_{fam}"
+
+                    xDvDot[adflow_name] = d_inputs[dv_name]
 
             if "adflow_states" in d_inputs:
                 wDot = d_inputs["adflow_states"]
@@ -949,12 +1067,19 @@ class ADflowFunctions(ExplicitComponent):
             else:
                 xVDot = None
 
-            funcsdot = solver.computeJacobianVectorProductFwd(xDvDot=xDvDot, xVDot=xVDot, wDot=wDot, funcDeriv=True)
+            if xDvDot or (xVDot is not None) or (wDot is not None):
+                # print("Applying jacvecproduct in adflow funcswith", xDvDot, xVDot, wDot)
+                funcsdot = solver.computeJacobianVectorProductFwd(
+                    xDvDot=xDvDot, xVDot=xVDot, wDot=wDot, funcDeriv=True, evalFuncs=self.extra_funcs
+                )
+                # print("done Applying jacvecproduct in adflow funcs")
 
-            for name in funcsdot:
-                func_name = name.lower()
-                if name in d_outputs:
-                    d_outputs[name] += funcsdot[func_name]
+                # print(f"[{self.comm.rank}] funcs derivative seed", funcsdot)
+
+                for name in funcsdot:
+                    func_name = name.lower()
+                    if name in d_outputs:
+                        d_outputs[name] += funcsdot[func_name]
 
         elif mode == "rev":
             funcsBar = {}

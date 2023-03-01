@@ -3923,7 +3923,7 @@ class ADFLOW(AeroSolver):
 
         return outVec
 
-    def solveDirectForRHS(self, inVec, relTol=None):
+    def solveDirectForRHS(self, rhs, phi, relTol=None, absTol=None):
         """
         Solve the direct system with an arbitary RHS vector.
 
@@ -3938,10 +3938,10 @@ class ADFLOW(AeroSolver):
             Solution vector of size w
         """
         if relTol is None:
-            relTol = self.getOption("adjointl2convergence")
-        outVec = self.adflow.adjointapi.solvedirectforrhs(inVec, relTol)
-
-        return outVec
+            relTol = self.getOption("adjointL2ConvergenceRel")
+        if absTol is None:
+            absTol = self.getOption("adjointL2Convergence")
+        self.adflow.adjointapi.solvedirectforrhs(rhs, phi, relTol, absTol)
 
     def saveAdjointMatrix(self, baseFileName):
         """Save the adjoint matrix to a binary petsc file for
@@ -4141,6 +4141,7 @@ class ADFLOW(AeroSolver):
         vector products. It is not generally called by the user by
         rather internally or from another solver. A DVGeo object and a
         mesh object must both be set for this routine.
+
         Parameters
         ----------
         xDvDot : dict
@@ -4151,6 +4152,7 @@ class ADFLOW(AeroSolver):
             Perturbation on the volume
         wDot : numpy array
             Perturbation the state variables
+
         residualDeriv : bool
             Flag specifiying if the residualDerivative (dwDot) should be returned
         funcDeriv : bool
@@ -4166,6 +4168,7 @@ class ADFLOW(AeroSolver):
             Specifies how the jacobian vector products will be computed.
         h : float
             Step sized used when the mode is "FD" or "CS
+
         Returns
         -------
         dwdot, funcsdot, fDot : array, dict, array
@@ -4218,6 +4221,8 @@ class ADFLOW(AeroSolver):
                 if len(key) == 1:
                     key = key[0].lower()
                     if key in self.possibleAeroDVs:
+                        if self.comm.rank == 0:
+                            print("key kacvec", key)
                         val = xDvDot[xKey]
                         if key.lower() == "alpha":
                             val *= numpy.pi / 180
@@ -4227,6 +4232,9 @@ class ADFLOW(AeroSolver):
                     fam = "_".join(key[1:])
                     key = key[0].lower()
                     if key in self.possibleBCDvs and not bcVarsEmpty:
+                        if self.comm.rank == 0:
+                            print("self.possibleBCDvs", self.possibleBCDvs)
+                            print("key possibleBCDvs", xKey, key)
                         # Figure out what index this should be:
                         for i in range(len(bcDataNames)):
                             if (
@@ -4254,22 +4262,25 @@ class ADFLOW(AeroSolver):
         if evalFuncs is None:
             evalFuncs = sorted(self.curAP.evalFuncs)
 
+        # Make sure we have a list that has only lower-cased entries
+        tmp = []
+        for f in evalFuncs:
+            tmp.append(f.lower())
+        evalFuncs = tmp
+
         # Generate the list of families we need for the functions in curAP
-        # We need to use a list to have the same ordering on every proc, but
-        # we need 'set like' behavior so we don't include duplicate group names.
         groupNames = []
         for f in evalFuncs:
             fl = f.lower()
             if fl in self.adflowCostFunctions:
                 groupName = self.adflowCostFunctions[fl][0]
-                if groupName not in groupNames:
-                    groupNames.append(groupName)
+                groupNames.append(groupName)
             if f in self.adflowUserCostFunctions:
                 for sf in self.adflowUserCostFunctions[f].functions:
                     groupName = self.adflowCostFunctions[sf.lower()][0]
-                    if groupName not in groupNames:
-                        groupNames.append(groupName)
+                    groupNames.append(groupName)
 
+        # groupNames = list(groupNames)
         if len(groupNames) == 0:
             famLists = self._expandGroupNames([self.allWallsGroup])
         else:
