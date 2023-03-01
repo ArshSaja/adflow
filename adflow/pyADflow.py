@@ -4285,7 +4285,13 @@ class ADFLOW(AeroSolver):
             famLists = self._expandGroupNames([self.allWallsGroup])
         else:
             famLists = self._expandGroupNames(groupNames)
-
+        print(
+            "AD",
+            bcDataValuesdot,
+            bcDataNames,
+            bcDataValues,
+        )
+        print("AD wdot", wdot)
         if mode == "AD":
             dwdot, tmp, fdot = self.adflow.adjointapi.computematrixfreeproductfwd(
                 xvdot,
