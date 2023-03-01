@@ -346,34 +346,35 @@ contains
 
     subroutine solveDirectForRHS(RHS, phi, nDOF, relativeTolerance, absoluteTolerance)
 
-        use ADJointPETSc
-        use inputADjoint
-        use adjointVars
-        use constants
-        use communication, only : myid, adflow_comm_world
-        use killsignals
-        use blockPointers
-        use inputTimeSpectral
-        use utils, only: EChk
-#include <petsc/finclude/petsc.h>
-        use adjointUtils, only: allocDerivativeValues, zeroADSeeds
-        implicit none
 
-        ! Input Variables
-        real(kind=realType), dimension(ndof) :: RHS, phi
-        real(kind=realType), intent(in) :: relativeTolerance, absoluteTolerance
-        integer(kind=intType), intent(in) :: nDOF
-        integer(kind=intTYpe) :: adjointConvergedReason
-        ! Working variables
-        integer(kind=intType) :: ierr, nn, sps, ii
-        real(kind=realType),pointer :: psi_like2_pointer(:)
-        real(kind=alwaysRealType), dimension(2) :: time
-        real(kind=alwaysRealType)               :: timeAdjLocal, timeAdj
-        real(kind=alwaysRealType)   :: norm
-        real(kind=alwaysRealType) :: l2abs, l2rel
-        integer(kind=intType) :: adjConvIts
-        logical :: checkSolution
-        Vec adjointRes, RHSVec
+    use ADJointPETSc
+    use inputADjoint
+    use adjointVars
+    use constants
+    use communication, only : myid, adflow_comm_world
+    use killsignals
+    use blockPointers
+    use inputTimeSpectral
+    use utils, only : EChk
+#include <petsc/finclude/petsc.h>
+    use adjointUtils, only : allocDerivativeValues, zeroADSeeds
+    implicit none
+
+    ! Input Variables
+    real(kind=realType), dimension(ndof) :: RHS, phi
+    real(kind=realType), intent(in) :: relativeTolerance, absoluteTolerance
+    integer(kind=intType), intent(in) :: nDOF
+    integer(kind=intTYpe) :: adjointConvergedReason
+    ! Working variables
+    integer(kind=intType) :: ierr, nn, sps, ii
+    real(kind=realType),pointer :: psi_like2_pointer(:)
+    real(kind=alwaysRealType), dimension(2) :: time
+    real(kind=alwaysRealType)               :: timeAdjLocal, timeAdj
+    real(kind=alwaysRealType)   :: norm
+    real(kind=alwaysRealType) :: l2abs, l2rel
+    integer(kind=intType) :: adjConvIts
+    logical :: checkSolution
+    Vec adjointRes, RHSVec
 
 #ifndef USE_COMPLEX
 
