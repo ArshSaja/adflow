@@ -490,6 +490,7 @@ class ADflowSolver(ImplicitComponent):
 
                 for dv_name, dv_bar in xDVBar.items():
                     if dv_name in d_inputs:
+                        print("dv_name", dv_name)
                         d_inputs[dv_name] += dv_bar.flatten()
 
     def solve_linear(self, d_outputs, d_residuals, mode):
