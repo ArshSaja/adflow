@@ -477,7 +477,7 @@ class ADflowSolver(ImplicitComponent):
         elif mode == "rev":
             if "adflow_states" in d_residuals:
                 resBar = d_residuals["adflow_states"]
-
+                print(resBar)
                 wBar, xVBar, xDVBar = solver.computeJacobianVectorProductBwd(
                     resBar=resBar, wDeriv=True, xVDeriv=True, xDvDeriv=False, xDvDerivAero=True
                 )
