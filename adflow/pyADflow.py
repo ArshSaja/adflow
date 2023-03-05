@@ -4141,7 +4141,6 @@ class ADFLOW(AeroSolver):
         vector products. It is not generally called by the user by
         rather internally or from another solver. A DVGeo object and a
         mesh object must both be set for this routine.
-
         Parameters
         ----------
         xDvDot : dict
@@ -4152,7 +4151,6 @@ class ADFLOW(AeroSolver):
             Perturbation on the volume
         wDot : numpy array
             Perturbation the state variables
-
         residualDeriv : bool
             Flag specifiying if the residualDerivative (dwDot) should be returned
         funcDeriv : bool
@@ -4168,7 +4166,6 @@ class ADFLOW(AeroSolver):
             Specifies how the jacobian vector products will be computed.
         h : float
             Step sized used when the mode is "FD" or "CS
-
         Returns
         -------
         dwdot, funcsdot, fDot : array, dict, array
@@ -4221,8 +4218,6 @@ class ADFLOW(AeroSolver):
                 if len(key) == 1:
                     key = key[0].lower()
                     if key in self.possibleAeroDVs:
-                        if self.comm.rank == 0:
-                            print("key kacvec", key)
                         val = xDvDot[xKey]
                         if key.lower() == "alpha":
                             val *= numpy.pi / 180
@@ -4232,9 +4227,6 @@ class ADFLOW(AeroSolver):
                     fam = "_".join(key[1:])
                     key = key[0].lower()
                     if key in self.possibleBCDvs and not bcVarsEmpty:
-                        if self.comm.rank == 0:
-                            print("self.possibleBCDvs", self.possibleBCDvs)
-                            print("key possibleBCDvs", xKey, key)
                         # Figure out what index this should be:
                         for i in range(len(bcDataNames)):
                             if (
@@ -4285,13 +4277,7 @@ class ADFLOW(AeroSolver):
             famLists = self._expandGroupNames([self.allWallsGroup])
         else:
             famLists = self._expandGroupNames(groupNames)
-        print(
-            "AD",
-            bcDataValuesdot,
-            bcDataNames,
-            bcDataValues,
-        )
-        print("AD wdot", wdot)
+
         if mode == "AD":
             dwdot, tmp, fdot = self.adflow.adjointapi.computematrixfreeproductfwd(
                 xvdot,
@@ -4495,25 +4481,32 @@ class ADFLOW(AeroSolver):
 
         for f in funcsBar:
             fl = f.lower()
+           
             if fl in self.adflowCostFunctions:
+               
                 groupName = self.adflowCostFunctions[fl][0]
                 basicFunc = self.adflowCostFunctions[fl][1]
-
+            
                 if groupName in groupNames:
                     ind = groupNames.index(groupName)
+               
                 else:
+                    
                     groupNames.append(groupName)
                     tmp.append(numpy.zeros(self.adflow.constants.ncostfunction))
+          
                     ind = -1
                 mapping = self.basicCostFunctions[basicFunc]
                 tmp[ind][mapping - 1] += funcsBar[f]
 
         if len(tmp) == 0:
             # No adflow-functions given. Just set zeros. Same as
-            # if funcsBar was None
+            # if funcsBar was Nonef
+
             funcsBar = numpy.zeros((self.adflow.constants.ncostfunction, 1))
             famLists = self._expandGroupNames([self.allWallsGroup])
         else:
+
             famLists = self._expandGroupNames(groupNames)
             funcsBar = numpy.array(tmp).T
 

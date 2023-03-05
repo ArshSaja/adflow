@@ -477,7 +477,7 @@ class ADflowSolver(ImplicitComponent):
         elif mode == "rev":
             if "adflow_states" in d_residuals:
                 resBar = d_residuals["adflow_states"]
-                
+
                 wBar, xVBar, xDVBar = solver.computeJacobianVectorProductBwd(
                     resBar=resBar, wDeriv=True, xVDeriv=True, xDvDeriv=False, xDvDerivAero=True
                 )
@@ -490,7 +490,6 @@ class ADflowSolver(ImplicitComponent):
 
                 for dv_name, dv_bar in xDVBar.items():
                     if dv_name in d_inputs:
-                        print("dv_name", dv_name)
                         d_inputs[dv_name] += dv_bar.flatten()
 
     def solve_linear(self, d_outputs, d_residuals, mode):
@@ -556,22 +555,27 @@ class ADflowSolver(ImplicitComponent):
 
         elif mode == "rev":
             # # check if we have a cached solution, if not, we start with zero
-            # if self.cached_sols[self.cache_counter] is None:
-            #     if self.comm.rank == 0:
-            #         print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-            #     self.cached_sols[self.cache_counter] = np.zeros_like(d_outputs["adflow_states"])
+            if self.cached_sols[self.cache_counter] is None:
+                if self.comm.rank == 0:
+                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
+                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
+            
+            phi = self.cached_sols[self.cache_counter].copy()
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
-
-            solver.adflow.adjointapi.solveadjoint(d_outputs["adflow_states"], d_residuals["adflow_states"], True)
+           
+            solver.adflow.adjointapi.solveadjoint(d_outputs["adflow_states"], phi, True)
+            d_residuals["adflow_states"] = phi
 
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
+            # cache the solution
+            self.cached_sols[self.cache_counter] = phi.copy()
             # # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
@@ -1086,13 +1090,15 @@ class ADflowFunctions(ExplicitComponent):
             funcsBar = {}
 
             if self.ap_funcs:
+         
                 for name in self.ap.evalFuncs:
                     func_name = name.lower()
-
+      
                     # we have to check for 0 here, so we don't include any unnecessary variables in funcsBar
                     # becasue it causes ADflow to do extra work internally even if you give it extra variables, even if the seed is 0
                     if func_name in d_outputs and d_outputs[func_name] != 0.0:
                         funcsBar[func_name] = d_outputs[func_name][0]
+           
                         # this stuff is fixed now. no need to divide
                         # funcsBar[func_name] = d_outputs[func_name][0] / self.comm.size
                         # print(self.comm.rank, func_name, funcsBar[func_name])
@@ -1102,19 +1108,22 @@ class ADflowFunctions(ExplicitComponent):
                 for name in self.extra_funcs:
                     func_name = name.lower()
                     if func_name in d_outputs and d_outputs[func_name] != 0.0:
+       
                         funcsBar[func_name] = d_outputs[func_name][0]
-
-            # print(funcsBar, flush=True)
+  
 
             wBar = None
             xVBar = None
             xDVBar = None
+            # resBar = d_outputs["adflow_states"]
 
             wBar, xVBar, xDVBar = solver.computeJacobianVectorProductBwd(
                 funcsBar=funcsBar, wDeriv=True, xVDeriv=True, xDvDeriv=False, xDvDerivAero=True
             )
+           
             if "adflow_states" in d_inputs:
                 d_inputs["adflow_states"] += wBar
+                
             if "adflow_vol_coords" in d_inputs:
                 d_inputs["adflow_vol_coords"] += xVBar
 
