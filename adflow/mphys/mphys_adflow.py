@@ -555,14 +555,14 @@ class ADflowSolver(ImplicitComponent):
 
         elif mode == "rev":
             # # check if we have a cached solution, if not, we start with zero
-            if self.cached_sols[self.cache_counter] is None:
-                if self.comm.rank == 0:
-                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+            # if self.cached_sols[self.cache_counter] is None:
+            #     if self.comm.rank == 0:
+            #         print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
+            #     self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
             
-            phi = self.cached_sols[self.cache_counter].copy()
+            phi = d_residuals["adflow_states"].copy()
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
@@ -575,14 +575,14 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
             # cache the solution
-            self.cached_sols[self.cache_counter] = phi.copy()
+            # self.cached_sols[self.cache_counter] = phi.copy()
             # # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
             # increment counter. we have 3 solutions for now
-            self.cache_counter = (self.cache_counter + 1) % 3
-            if self.comm.rank == 0:
-                print(f"New cache counter: {self.cache_counter}")
+            # self.cache_counter = (self.cache_counter + 1) % 3
+            # if self.comm.rank == 0:
+            #     print(f"New cache counter: {self.cache_counter}")
 
         return True, 0, 0
 
