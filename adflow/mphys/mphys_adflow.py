@@ -294,7 +294,7 @@ class ADflowSolver(ImplicitComponent):
         ap = self.ap
 
         # adjust the relative L2 convergence
-        if self.first_call:
+        if self.first_call and self.l2rel_save > 1e-4:
             # first call gets 1e-4 always
             solver.setOption("L2ConvergenceRel", 1e-4)
             self.first_call = False
@@ -561,12 +561,12 @@ class ADflowSolver(ImplicitComponent):
             #     self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
-            
+
             phi = d_residuals["adflow_states"].copy()
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
-           
+
             solver.adflow.adjointapi.solveadjoint(d_outputs["adflow_states"], phi, True)
             d_residuals["adflow_states"] = phi
 
@@ -1090,15 +1090,14 @@ class ADflowFunctions(ExplicitComponent):
             funcsBar = {}
 
             if self.ap_funcs:
-         
                 for name in self.ap.evalFuncs:
                     func_name = name.lower()
-      
+
                     # we have to check for 0 here, so we don't include any unnecessary variables in funcsBar
                     # becasue it causes ADflow to do extra work internally even if you give it extra variables, even if the seed is 0
                     if func_name in d_outputs and d_outputs[func_name] != 0.0:
                         funcsBar[func_name] = d_outputs[func_name][0]
-           
+
                         # this stuff is fixed now. no need to divide
                         # funcsBar[func_name] = d_outputs[func_name][0] / self.comm.size
                         # print(self.comm.rank, func_name, funcsBar[func_name])
@@ -1108,9 +1107,7 @@ class ADflowFunctions(ExplicitComponent):
                 for name in self.extra_funcs:
                     func_name = name.lower()
                     if func_name in d_outputs and d_outputs[func_name] != 0.0:
-       
                         funcsBar[func_name] = d_outputs[func_name][0]
-  
 
             wBar = None
             xVBar = None
@@ -1120,10 +1117,10 @@ class ADflowFunctions(ExplicitComponent):
             wBar, xVBar, xDVBar = solver.computeJacobianVectorProductBwd(
                 funcsBar=funcsBar, wDeriv=True, xVDeriv=True, xDvDeriv=False, xDvDerivAero=True
             )
-           
+
             if "adflow_states" in d_inputs:
                 d_inputs["adflow_states"] += wBar
-                
+
             if "adflow_vol_coords" in d_inputs:
                 d_inputs["adflow_vol_coords"] += xVBar
 
