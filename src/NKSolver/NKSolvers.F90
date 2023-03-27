@@ -3679,7 +3679,7 @@ contains
         use constants
         use blockPointers, only: nDom, flowDoms, shockSensor, ib, jb, kb, p, w, gamma
         use inputPhysics, only: equations
-        use inputIteration, only: L2conv, L2convRel
+        use inputIteration, only: L2conv, L2convRel, L2ConvAbs
         use inputTimeSpectral, only: nTimeIntervalsSpectral
         use inputDiscretization, only: lumpedDiss, approxSA, orderturb
         use iteration, only: approxTotalIts, totalR0, totalR, stepMonitor, linResMonitor, currentLevel, iterType, totalRStart

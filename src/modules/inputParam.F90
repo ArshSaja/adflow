@@ -271,7 +271,7 @@ module inputIteration
     real(kind=realType) :: cfl, cflCoarse, fcoll, smoop
     real(kind=realType) :: alfaTurb, betaTurb
     real(kind=realType) :: L2Conv, L2ConvCoarse
-    real(kind=realType) :: L2ConvRel
+    real(kind=realType) :: L2ConvRel, L2ConvAbs
     real(kind=realType) :: maxL2DeviationFactor
     real(kind=realType) :: relaxBleeds
     real(kind=realtype) :: epscoefconv

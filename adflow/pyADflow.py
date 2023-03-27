@@ -4481,20 +4481,18 @@ class ADFLOW(AeroSolver):
 
         for f in funcsBar:
             fl = f.lower()
-           
+
             if fl in self.adflowCostFunctions:
-               
                 groupName = self.adflowCostFunctions[fl][0]
                 basicFunc = self.adflowCostFunctions[fl][1]
-            
+
                 if groupName in groupNames:
                     ind = groupNames.index(groupName)
-               
+
                 else:
-                    
                     groupNames.append(groupName)
                     tmp.append(numpy.zeros(self.adflow.constants.ncostfunction))
-          
+
                     ind = -1
                 mapping = self.basicCostFunctions[basicFunc]
                 tmp[ind][mapping - 1] += funcsBar[f]
@@ -4506,7 +4504,6 @@ class ADFLOW(AeroSolver):
             funcsBar = numpy.zeros((self.adflow.constants.ncostfunction, 1))
             famLists = self._expandGroupNames([self.allWallsGroup])
         else:
-
             famLists = self._expandGroupNames(groupNames)
             funcsBar = numpy.array(tmp).T
 
@@ -5326,6 +5323,7 @@ class ADFLOW(AeroSolver):
             "useExternalDynamicMesh": [bool, False],
             # Convergence Parameters
             "L2Convergence": [float, 1e-8],
+            "L2ConvergenceAbs": [float, 1e-5],
             "L2ConvergenceRel": [float, 1e-16],
             "L2ConvergenceCoarse": [float, 1e-2],
             "maxL2DeviationFactor": [float, 1.0],
@@ -5698,6 +5696,7 @@ class ADFLOW(AeroSolver):
             "usetsinterpolatedgridvelocity": ["ts", "usetsinterpolatedgridvelocity"],
             # Convergence Parameters
             "l2convergence": ["iter", "l2conv"],
+            "l2convergenceabs": ["iter", "l2convabs"],
             "l2convergencerel": ["iter", "l2convrel"],
             "l2convergencecoarse": ["iter", "l2convcoarse"],
             "maxl2deviationfactor": ["iter", "maxl2deviationfactor"],

@@ -1129,6 +1129,7 @@ python module libadflow
          real(kind=realtype) :: l2conv
          real(kind=realtype) :: l2convcoarse
          real(kind=realtype) :: l2convrel
+         real(kind=realtype) :: l2convabs
          real(kind=realtype) :: epscoefconv
          real(kind=realtype) allocatable,dimension(:) :: etark
          real(kind=realtype) allocatable,dimension(:) :: cdisrk

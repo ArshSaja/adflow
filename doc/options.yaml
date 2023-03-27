@@ -759,6 +759,11 @@ L2Convergence:
     Since this prolonged solution may be a fairly good starting point, the actual convergence relative to the freestream residual may be 1 to 2 orders of magnitudes lower.
     For the NK solver, this option also determines the convergence, but the reference is taken as the freestream residual.
 
+L2ConvergenceAbs:
+  desc: >
+    This option is typically only used when ADflow is used in MDA.
+    This specifies the absolute tolerance in residual convergence.
+
 L2ConvergenceRel:
   desc: >
     This option is typically only used when ADflow is used in conjunction with an aerostructural solver.

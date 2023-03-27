@@ -929,7 +929,7 @@ contains
         integer :: ierr
         integer(kind=intType) :: nMGCycles
         character(len=7) :: numberString
-        logical :: absConv, relConv, firstNK, firstANK, old_writeGrid
+        logical :: absConv,absL2Conv, relConv, firstNK, firstANK, old_writeGrid
         real(kind=realType) :: nk_switchtol_save, curTime, ordersConvergedOld
         character(len=maxStringLen) :: iterFormat
 
@@ -1247,7 +1247,7 @@ contains
         use blockPointers, only: nDom
         use communication, only: adflow_comm_world, myid
         use inputIteration, only: printIterations, l2convcoarse, l2conv, l2convrel, &
-                                  minIterNum, maxL2DeviationFactor, ncycles, RKReset
+                                  minIterNum, maxL2DeviationFactor, ncycles, RKReset, L2ConvAbs
         use inputPhysics, only: liftDirection, dragDirection, equationMode, &
                                 lengthRef, machCoef, surfaceRef
         use flowVarRefState, only: pRef, lRef, gammaInf
@@ -1283,7 +1283,7 @@ contains
         real(kind=realType), dimension(3) :: cfp, cfv, cmp, cmv
         real(kind=realType) :: cmpaxis, cmvaxis
         logical :: nanOccurred, writeIterations
-        logical :: absConv, relConv
+        logical :: absConv, absL2Conv, relConv
         real(kind=realType) :: localValues(nLocalValues)
         real(kind=realType) :: funcValues(nCostFunction)
         ! Determine whether or not the iterations must be written.
@@ -1721,6 +1721,7 @@ contains
                 ! has not converged yet.
 
                 absConv = .False.
+                absL2Conv = .False.
                 relConv = .False.
 
                 ! We make a split here based on if we are operating on a
@@ -1731,6 +1732,11 @@ contains
                 if (currentLevel /= 1) then
                     if (rhoRes < L2ConvThisLevel * rhoResStart) then
                         relConv = .True.
+                    end if
+
+                    ! abs check only done on finest level
+                    if (totalR < L2ConvAbs) then
+                        absL2Conv = .True.
                     end if
                 else
                     ! We are on the fine level. All checking is done using
@@ -1746,16 +1752,22 @@ contains
                         relConv = .True.
                     end if
 
+                    ! abs check only done on finest level
+                    if (totalR < L2ConvAbs) then
+                        absL2Conv = .True.
+                    end if
+
                     ! If the totla number of iterations is less than the
                     ! RKReset, don't check the residual
                     if (iterTot < minIterNum .and. rkreset) then
                         relConv = .False.
                         absConv = .False.
+                        absL2Conv = .False.
                     end if
                 end if
 
                 ! Combine the two flags.
-                if (absConv .or. relConv) then
+                if (absConv .or. relConv or absL2Conv) then
                     converged = .True.
                 end if
 
