@@ -495,8 +495,8 @@ class ADflowSolver(ImplicitComponent):
             solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
         else:
             if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",1e-7)
-            solver.setOption("ankcoupledswitchtol", 1e-7)
+                print("ankcoupledswitchtol :",1e-6)
+            solver.setOption("ankcoupledswitchtol", 1e-6)
 
         outputs["adflow_states"] = solver.getStates()
 
