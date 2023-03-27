@@ -227,14 +227,18 @@ class ADflowSolver(ImplicitComponent):
 
         # TODO temporary changes for the schur paper
         self.first_call = True
+        self.usecache = True
+        self.nl_call = 0
         self.l2rel_save = solver.getOption("L2ConvergenceRel")
-
+        self.l2_linrel_save = solver.getOption("adjointl2convergencerel")
+        self.l2_coupled_save = solver.getOption("ankcoupledswitchtol")
+        
         # self.declare_partials(of='adflow_states', wrt='*')
 
         # TODO once caching is available from openmdao, these will be removed
         self.cached_sols = [None, None, None]
         self.cache_counter = 0
-
+        self.cache_counter_ex = 0
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def _set_ap(self, inputs, print_dict=True):
@@ -294,12 +298,55 @@ class ADflowSolver(ImplicitComponent):
         ap = self.ap
 
         # adjust the relative L2 convergence
-        if self.first_call and self.l2rel_save > 1e-4:
+        if self.first_call and  self.l2rel_save>1e-4:
             # first call gets 1e-4 always
             solver.setOption("L2ConvergenceRel", 1e-4)
             self.first_call = False
         else:
             solver.setOption("L2ConvergenceRel", self.l2rel_save)
+        self.nl_call += 1
+        
+        normRes0,normRes0R,normRes = solver.getResNorms()
+        if self.comm.rank == 0:
+            print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
+        if normRes0!=0.0:
+            
+            if normRes is not None:
+                normRes = normRes/normRes0
+                normResCur = normRes/normRes0R
+            else:
+                normRes=1.0
+                normResCur =1.0
+        else:
+            normRes = normRes
+            normResCur = normRes0R
+        
+        if normRes<1e-12 or normRes is None :
+            # first call gets 1e-4 always
+            if self.nl_call>0:
+                solver.setOption("adjointl2convergencerel", 1e-2)
+            else:
+                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
+            
+            # self.first_call = False
+        else:
+            solver.setOption("adjointl2convergencerel", 1e-12)
+            
+        if  normRes<1e-7 or normRes is None:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",1e-7)
+            solver.setOption("ankcoupledswitchtol", 1e-7)   
+
+        elif  normRes<1e-12 or normRes is None:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",self.l2_coupled_save)
+            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)  
+           
+        else:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",self.l2_coupled_save)
+            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+        
 
         if self._do_solve:
             # Set the warped mesh
@@ -358,7 +405,9 @@ class ADflowSolver(ImplicitComponent):
                         # write the solution so that we can diagnose
                         solver.writeSolution(baseName="analysis_fail", number=self.solution_counter)
                         self.solution_counter += 1
-
+                        if self.comm.rank == 0:
+                            print("ankcoupledswitchtol :",self.l2_coupled_save)
+                        solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
                         ap.solveFailed = False
                         ap.fatalFail = False
                         solver.resetFlow(ap)
@@ -402,6 +451,52 @@ class ADflowSolver(ImplicitComponent):
             # with a clean restart
             else:
                 self.cleanRestart = False
+        # adjust the relative L2 convergence
+        self.cache_counter = 0
+        self.cache_counter_ex = 0
+        normRes0,normRes0R,normRes = solver.getResNorms()
+        if self.comm.rank == 0:
+            print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
+        if normRes0!=0.0:
+            
+            if normRes is not None:
+                normRes = normRes/normRes0
+                normResCur = normRes/normRes0R
+            else:
+                normRes=1.0
+                normResCur =1.0
+        else:
+            normRes = normRes
+            normResCur = normRes0R
+
+        if normRes>1e-10 :
+            # first call gets 1e-4 always
+            if self.nl_call>0:
+                solver.setOption("adjointl2convergencerel", 1e-2)
+            else:
+                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
+            
+            # self.first_call = False
+        else:
+            solver.setOption("adjointl2convergencerel", 1e-12)
+
+        # normRes0,normRes0R,normRes = solver.getResNorms()
+        # if self.comm.rank == 0:
+        #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0)
+        # if normRes0!=0.0:
+        #     if normRes is not None:
+        #         normRes = normRes/normRes0
+        # else:
+        #     normRes = normRes
+
+        if  normRes>1e-10 or normRes is None:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",self.l2_coupled_save)
+            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+        else:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",1e-7)
+            solver.setOption("ankcoupledswitchtol", 1e-7)
 
         outputs["adflow_states"] = solver.getStates()
 
@@ -522,7 +617,7 @@ class ADflowSolver(ImplicitComponent):
             if self.cached_sols[self.cache_counter] is None:
                 if self.comm.rank == 0:
                     print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+                self.cached_sols[self.cache_counter] = np.zeros_like(d_outputs["adflow_states"])
 
             # load the cached solution
             phi = self.cached_sols[self.cache_counter].copy()
@@ -535,8 +630,9 @@ class ADflowSolver(ImplicitComponent):
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
 
+            resd = d_residuals["adflow_states"]
             solver.solveDirectForRHS(
-                d_residuals["adflow_states"], phi
+                resd, phi
             )  # , absTol=self.abs_direct_tols[self.cache_counter])
 
             self.comm.barrier()
@@ -549,23 +645,30 @@ class ADflowSolver(ImplicitComponent):
             self.cached_sols[self.cache_counter] = phi.copy()
 
             # increment counter. we have 3 solutions for now
-            self.cache_counter = (self.cache_counter + 1) % 3
+            self.cache_counter = (self.cache_counter + 1) % 5
             if self.comm.rank == 0:
                 print(f"New cache counter: {self.cache_counter}")
 
         elif mode == "rev":
             # # check if we have a cached solution, if not, we start with zero
-            # if self.cached_sols[self.cache_counter] is None:
-            #     if self.comm.rank == 0:
-            #         print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-            #     self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+            if self.cached_sols[self.cache_counter] is None:
+                if self.comm.rank == 0:
+                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
+                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
 
-            phi = d_residuals["adflow_states"].copy()
+            # phi = d_residuals["adflow_states"].copy()
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
+            # load the cached solution
+            if  self.cache_counter_ex<3:
+                phi = self.cached_sols[self.cache_counter].copy()
+            else:
+                phi = d_residuals["adflow_states"].copy()
+                self.cache_counter = 0
+                # self.usecache=False
 
             solver.adflow.adjointapi.solveadjoint(d_outputs["adflow_states"], phi, True)
             d_residuals["adflow_states"] = phi
@@ -575,14 +678,19 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
             # cache the solution
-            # self.cached_sols[self.cache_counter] = phi.copy()
-            # # cache the solution
+            self.cached_sols[self.cache_counter] = phi.copy()
+            # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
             # increment counter. we have 3 solutions for now
-            # self.cache_counter = (self.cache_counter + 1) % 3
-            # if self.comm.rank == 0:
-            #     print(f"New cache counter: {self.cache_counter}")
+            # if not self.usecache and self.cache_counter>2:
+            self.cache_counter = (self.cache_counter_ex + 1) % 4
+            self.cache_counter_ex = self.cache_counter
+            if  self.cache_counter_ex==3:
+                    self.cache_counter = 0
+                    
+            if self.comm.rank == 0:
+                print(f"New cache counter: {self.cache_counter}")
 
         return True, 0, 0
 
@@ -1232,6 +1340,36 @@ class ADflowGroup(Group):
 
         # promote these variables to the aero group level
         self.promotes("prop", outputs=prop_funcs)
+
+
+    def mphys_add_aero_funcs(self, prop_funcs):
+        # this is the main routine to enable outputs from the propulsion element
+
+        # call the method of the prop element
+        self.solver.mphys_add_aerosolver_funcs(prop_funcs)
+
+        # promote these variables to the aero group level
+        self.promotes("solver", outputs=prop_funcs)
+    
+    def mphys_add_aerosolver_funcs(self, funcs):
+        self.extra_funcs = funcs
+
+        # loop over the functions here and create the output
+        for f_name in funcs:
+            # get the function type. this is the first word before the first underscore
+            f_type = f_name.split("_")[0]
+
+            # check if we have a unit defined for this
+            if f_type in FUNCS_UNITS:
+                units = FUNCS_UNITS[f_type]
+            else:
+                units = None
+
+            # print the function name and units
+            # if self.comm.rank == 0:
+            #     print("%s (%s)" % (f_name, units))
+
+            self.add_output(f_name, distributed=False, shape=1, units=units, tags=["mphys_result"])
 
 
 class ADflowMeshGroup(Group):
