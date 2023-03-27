@@ -1767,7 +1767,7 @@ contains
                 end if
 
                 ! Combine the two flags.
-                if (absConv .or. relConv or absL2Conv) then
+                if (absConv .or. relConv .or. absL2Conv) then
                     converged = .True.
                 end if
 
