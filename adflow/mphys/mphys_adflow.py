@@ -331,16 +331,19 @@ class ADflowSolver(ImplicitComponent):
             # self.first_call = False
         else:
             solver.setOption("adjointl2convergencerel", 1e-12)
-            
-        if  normRes<1e-7 or normRes is None:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",1e-7)
-            solver.setOption("ankcoupledswitchtol", 1e-7)   
+        
 
-        elif  normRes<1e-12 or normRes is None:
+        if  normRes<1e-11 or normRes is None:
             if self.comm.rank == 0:
                 print("ankcoupledswitchtol :",self.l2_coupled_save)
             solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)  
+
+        elif  normRes<1e-7 or normRes is None:
+            if self.comm.rank == 0:
+                print("ankcoupledswitchtol :",1e-6)
+            solver.setOption("ankcoupledswitchtol", 1e-6)   
+
+        
            
         else:
             if self.comm.rank == 0:
@@ -663,7 +666,7 @@ class ADflowSolver(ImplicitComponent):
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
             # load the cached solution
-            if  self.cache_counter_ex<3:
+            if  self.cache_counter_ex<4:
                 phi = self.cached_sols[self.cache_counter].copy()
             else:
                 phi = d_residuals["adflow_states"].copy()
@@ -678,15 +681,16 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
             # cache the solution
-            self.cached_sols[self.cache_counter] = phi.copy()
+            if  self.cache_counter_ex<4:
+                self.cached_sols[self.cache_counter] = phi.copy()
             # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
             # increment counter. we have 3 solutions for now
             # if not self.usecache and self.cache_counter>2:
-            self.cache_counter = (self.cache_counter_ex + 1) % 4
+            self.cache_counter = (self.cache_counter_ex + 1) % 5
             self.cache_counter_ex = self.cache_counter
-            if  self.cache_counter_ex==3:
+            if  self.cache_counter_ex==4:
                     self.cache_counter = 0
                     
             if self.comm.rank == 0:
