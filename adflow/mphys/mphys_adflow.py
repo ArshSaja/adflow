@@ -236,7 +236,7 @@ class ADflowSolver(ImplicitComponent):
         # self.declare_partials(of='adflow_states', wrt='*')
 
         # TODO once caching is available from openmdao, these will be removed
-        self.cached_sols = [None, None, None]
+        self.cached_sols = [None, None, None,None, None]
         self.cache_counter = 0
         self.cache_counter_ex = 0
         # self.declare_partials(of='adflow_states', wrt='*')
@@ -666,7 +666,7 @@ class ADflowSolver(ImplicitComponent):
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
             # load the cached solution
-            if  self.cache_counter_ex<4:
+            if  self.cache_counter_ex<3:
                 phi = self.cached_sols[self.cache_counter].copy()
             else:
                 phi = d_residuals["adflow_states"].copy()
@@ -681,7 +681,7 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
             # cache the solution
-            if  self.cache_counter_ex<4:
+            if  self.cache_counter_ex<3:
                 self.cached_sols[self.cache_counter] = phi.copy()
             # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
@@ -690,7 +690,7 @@ class ADflowSolver(ImplicitComponent):
             # if not self.usecache and self.cache_counter>2:
             self.cache_counter = (self.cache_counter_ex + 1) % 5
             self.cache_counter_ex = self.cache_counter
-            if  self.cache_counter_ex==4:
+            if  self.cache_counter_ex>=3:
                     self.cache_counter = 0
                     
             if self.comm.rank == 0:
