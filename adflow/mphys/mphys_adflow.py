@@ -232,13 +232,15 @@ class ADflowSolver(ImplicitComponent):
         self.l2rel_save = solver.getOption("L2ConvergenceRel")
         self.l2_linrel_save = solver.getOption("adjointl2convergencerel")
         self.l2_coupled_save = solver.getOption("ankcoupledswitchtol")
-        
+
         # self.declare_partials(of='adflow_states', wrt='*')
 
         # TODO once caching is available from openmdao, these will be removed
-        self.cached_sols = [None, None, None,None, None]
+        self.cached_sols = [None, None, None, None, None]
         self.cache_counter = 0
         self.cache_counter_ex = 0
+        self.n_balance = 1
+        self.n_const_p_obj = 2
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def _set_ap(self, inputs, print_dict=True):
@@ -298,58 +300,54 @@ class ADflowSolver(ImplicitComponent):
         ap = self.ap
 
         # adjust the relative L2 convergence
-        if self.first_call and  self.l2rel_save>1e-4:
+        if self.first_call and self.l2rel_save > 1e-4:
             # first call gets 1e-4 always
             solver.setOption("L2ConvergenceRel", 1e-4)
             self.first_call = False
         else:
             solver.setOption("L2ConvergenceRel", self.l2rel_save)
         self.nl_call += 1
-        
-        normRes0,normRes0R,normRes = solver.getResNorms()
-        if self.comm.rank == 0:
-            print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
-        if normRes0!=0.0:
-            
-            if normRes is not None:
-                normRes = normRes/normRes0
-                normResCur = normRes/normRes0R
-            else:
-                normRes=1.0
-                normResCur =1.0
-        else:
-            normRes = normRes
-            normResCur = normRes0R
-        
-        if normRes<1e-12 or normRes is None :
-            # first call gets 1e-4 always
-            if self.nl_call>0:
-                solver.setOption("adjointl2convergencerel", 1e-2)
-            else:
-                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
-            
-            # self.first_call = False
-        else:
-            solver.setOption("adjointl2convergencerel", 1e-12)
-        
 
-        if  normRes<1e-11 or normRes is None:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",self.l2_coupled_save)
-            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)  
+        # normRes0,normRes0R,normRes = solver.getResNorms()
+        # if self.comm.rank == 0:
+        #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
+        # if normRes0!=0.0:
 
-        elif  normRes<1e-7 or normRes is None:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",1e-6)
-            solver.setOption("ankcoupledswitchtol", 1e-6)   
+        #     if normRes is not None:
+        #         normRes = normRes/normRes0
+        #         normResCur = normRes/normRes0R
+        #     else:
+        #         normRes=1.0
+        #         normResCur =1.0
+        # else:
+        #     normRes = normRes
+        #     normResCur = normRes0R
 
-        
-           
-        else:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",self.l2_coupled_save)
-            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
-        
+        # if normRes<1e-12 or normRes is None :
+        #     # first call gets 1e-4 always
+        #     if self.nl_call>0:
+        #         solver.setOption("adjointl2convergencerel", 1e-2)
+        #     else:
+        #         solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
+
+        #     # self.first_call = False
+        # else:
+        #     solver.setOption("adjointl2convergencerel", 1e-12)
+
+        # if  normRes<1e-11 or normRes is None:
+        #     if self.comm.rank == 0:
+        #         print("ankcoupledswitchtol :",self.l2_coupled_save)
+        #     solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+
+        # elif  normRes<1e-7 or normRes is None:
+        #     if self.comm.rank == 0:
+        #         print("ankcoupledswitchtol :",1e-6)
+        #     solver.setOption("ankcoupledswitchtol", 1e-6)
+
+        # else:
+        #     if self.comm.rank == 0:
+        #         print("ankcoupledswitchtol :",self.l2_coupled_save)
+        #     solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
 
         if self._do_solve:
             # Set the warped mesh
@@ -408,9 +406,9 @@ class ADflowSolver(ImplicitComponent):
                         # write the solution so that we can diagnose
                         solver.writeSolution(baseName="analysis_fail", number=self.solution_counter)
                         self.solution_counter += 1
-                        if self.comm.rank == 0:
-                            print("ankcoupledswitchtol :",self.l2_coupled_save)
-                        solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+                        # if self.comm.rank == 0:
+                        #     print("ankcoupledswitchtol :",self.l2_coupled_save)
+                        # solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
                         ap.solveFailed = False
                         ap.fatalFail = False
                         solver.resetFlow(ap)
@@ -457,49 +455,50 @@ class ADflowSolver(ImplicitComponent):
         # adjust the relative L2 convergence
         self.cache_counter = 0
         self.cache_counter_ex = 0
-        normRes0,normRes0R,normRes = solver.getResNorms()
-        if self.comm.rank == 0:
-            print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
-        if normRes0!=0.0:
-            
-            if normRes is not None:
-                normRes = normRes/normRes0
-                normResCur = normRes/normRes0R
-            else:
-                normRes=1.0
-                normResCur =1.0
-        else:
-            normRes = normRes
-            normResCur = normRes0R
-
-        if normRes>1e-10 :
-            # first call gets 1e-4 always
-            if self.nl_call>0:
-                solver.setOption("adjointl2convergencerel", 1e-2)
-            else:
-                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
-            
-            # self.first_call = False
-        else:
-            solver.setOption("adjointl2convergencerel", 1e-12)
 
         # normRes0,normRes0R,normRes = solver.getResNorms()
         # if self.comm.rank == 0:
-        #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0)
+        #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0,normRes/normRes0)
         # if normRes0!=0.0:
+
         #     if normRes is not None:
         #         normRes = normRes/normRes0
+        #         normResCur = normRes/normRes0R
+        #     else:
+        #         normRes=1.0
+        #         normResCur =1.0
         # else:
         #     normRes = normRes
+        #     normResCur = normRes0R
 
-        if  normRes>1e-10 or normRes is None:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",self.l2_coupled_save)
-            solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
-        else:
-            if self.comm.rank == 0:
-                print("ankcoupledswitchtol :",1e-6)
-            solver.setOption("ankcoupledswitchtol", 1e-6)
+        # if normRes>1e-10 :
+        #     # first call gets 1e-4 always
+        #     if self.nl_call>0:
+        #         solver.setOption("adjointl2convergencerel", 1e-2)
+        #     else:
+        #         solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
+
+        #     # self.first_call = False
+        # else:
+        #     solver.setOption("adjointl2convergencerel", 1e-12)
+
+        # # normRes0,normRes0R,normRes = solver.getResNorms()
+        # # if self.comm.rank == 0:
+        # #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0)
+        # # if normRes0!=0.0:
+        # #     if normRes is not None:
+        # #         normRes = normRes/normRes0
+        # # else:
+        # #     normRes = normRes
+
+        # if  normRes>1e-10 or normRes is None:
+        #     if self.comm.rank == 0:
+        #         print("ankcoupledswitchtol :",self.l2_coupled_save)
+        #     solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+        # else:
+        #     if self.comm.rank == 0:
+        #         print("ankcoupledswitchtol :",1e-6)
+        #     solver.setOption("ankcoupledswitchtol", 1e-6)
 
         outputs["adflow_states"] = solver.getStates()
 
@@ -634,9 +633,7 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
 
             resd = d_residuals["adflow_states"]
-            solver.solveDirectForRHS(
-                resd, phi
-            )  # , absTol=self.abs_direct_tols[self.cache_counter])
+            solver.solveDirectForRHS(resd, phi)  # , absTol=self.abs_direct_tols[self.cache_counter])
 
             self.comm.barrier()
             if self.comm.rank == 0:
@@ -666,9 +663,11 @@ class ADflowSolver(ImplicitComponent):
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
             # load the cached solution
-            if  self.cache_counter_ex<3:
+            if self.cache_counter_ex < self.n_balance:
+                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
                 phi = self.cached_sols[self.cache_counter].copy()
             else:
+                solver.setOption("adjointl2convergencerel", 1e-12)
                 phi = d_residuals["adflow_states"].copy()
                 self.cache_counter = 0
                 # self.usecache=False
@@ -681,18 +680,18 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
 
             # cache the solution
-            if  self.cache_counter_ex<3:
+            if self.cache_counter_ex < self.n_balance:
                 self.cached_sols[self.cache_counter] = phi.copy()
             # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
             # increment counter. we have 3 solutions for now
             # if not self.usecache and self.cache_counter>2:
-            self.cache_counter = (self.cache_counter_ex + 1) % 5
+            self.cache_counter = (self.cache_counter_ex + 1) % self.n_const_p_obj
             self.cache_counter_ex = self.cache_counter
-            if  self.cache_counter_ex>=3:
-                    self.cache_counter = 0
-                    
+            if self.cache_counter_ex >= self.n_balance:
+                self.cache_counter = 0
+
             if self.comm.rank == 0:
                 print(f"New cache counter: {self.cache_counter}")
 
@@ -1345,7 +1344,6 @@ class ADflowGroup(Group):
         # promote these variables to the aero group level
         self.promotes("prop", outputs=prop_funcs)
 
-
     def mphys_add_aero_funcs(self, prop_funcs):
         # this is the main routine to enable outputs from the propulsion element
 
@@ -1354,7 +1352,7 @@ class ADflowGroup(Group):
 
         # promote these variables to the aero group level
         self.promotes("solver", outputs=prop_funcs)
-    
+
     def mphys_add_aerosolver_funcs(self, funcs):
         self.extra_funcs = funcs
 
