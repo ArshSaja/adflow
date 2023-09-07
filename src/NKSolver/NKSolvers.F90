@@ -611,8 +611,8 @@ contains
 
         maxIt = NK_subspace
 
-        call KSPSetTolerances(NK_KSP, real(rtol), &
-                              real(atol), real(NK_divTol), maxIt, ierr)
+        call KSPSetTolerances(NK_KSP, rtol, &
+                              atol, NK_divTol, maxIt, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call KSPSetResidualHistory(NK_KSP, resHist, maxIt + 1, PETSC_TRUE, ierr)
@@ -1113,6 +1113,8 @@ contains
 
         ! Working Variables
         integer(kind=intType) :: ierr
+        ! Working Variables
+        real(kind=realTYpe) :: rtol_apc, abstol_apc, dtol_apc
 
         ! Setup the NKsolver if not already done so
         if (.not. NK_solverSetup) then
@@ -1141,7 +1143,10 @@ contains
         call MatMFFDSetBase(dRdW, wVec, baseRes, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         ! This needs to be a bit better...
-        call KSPSetTolerances(NK_KSP, 1e-8, 1e-16, 10.0, &
+        rtol_apc = 1.e-8
+        abstol_apc = 1.e-16
+        dtol_apc = 10.0
+        call KSPSetTolerances(NK_KSP, rtol_apc, abstol_apc, dtol_apc, &
                               applyPCSubSpaceSize, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
@@ -3442,7 +3447,7 @@ contains
             ! If this happens, the preconditioner is re-computed and because of this,
             ! ANK iterations usually don't take more than 2 times number of ANK_subSpace size iterations
             call KSPSetTolerances(ANK_KSPTurb, rtol, &
-                                  real(atol), real(ANK_divTol), ank_maxIter, ierr)
+                                  atol, ANK_divTol, ank_maxIter, ierr)
             call EChk(ierr, __FILE__, __LINE__)
 
             call KSPSetResidualHistory(ANK_KSPTurb, resHist, ank_maxIter + 1, PETSC_TRUE, ierr)
@@ -3890,7 +3895,7 @@ contains
         ! If this happens, the preconditioner is re-computed and because of this,
         ! ANK iterations usually don't take more than 2 times number of ANK_subSpace size iterations
         call KSPSetTolerances(ANK_KSP, rtol, &
-                              real(atol), real(ANK_divTol), ank_maxIter, ierr)
+                              atol, ANK_divTol, ank_maxIter, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call KSPSetResidualHistory(ANK_KSP, resHist, ank_maxIter + 1, PETSC_TRUE, ierr)
