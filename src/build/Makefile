@@ -66,7 +66,7 @@ OCUFFILES=$(CUFFiles:%.cuf=%.o)
 DEP_FILE=adflow_project.dep
 
 # Not real targets are "phony"
-.PHONY: sourcesNoOpt sources lib
+.PHONY: sourcesNoOpt sources sourcesCuf lib
 
 default: all
 
