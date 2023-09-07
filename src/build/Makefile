@@ -60,13 +60,13 @@ CUFFiles=$(filter %.cuf,$(cuffilesNoDir))
 
 # Finally convert all source files to .o
 OFILES_NO_OPT=$(f90FilesNoOpt:%.f90=%.o) $(F90FilesNoOpt:%.F90=%.o)
-OFILES=$(f90Files:%.f90=%.o) $(F90Files:%.F90=%.o) $(cFilesNoDir:%.c=%.o) $(f77FilesNoDir:%.f=%.o)
-OCUFFILES=$(CUFFiles:%.cuf=%.o)
+OFILES=$(f90Files:%.f90=%.o) $(F90Files:%.F90=%.o) $(cFilesNoDir:%.c=%.o) $(f77FilesNoDir:%.f=%.o) $(CUFFiles:%.cuf=%.o)
+# OCUFFILES=$(CUFFiles:%.cuf=%.o)
 # Define the file name for the auto-generated dependency file.
 DEP_FILE=adflow_project.dep
 
 # Not real targets are "phony"
-.PHONY: sourcesNoOpt sources sourcesCuf lib
+.PHONY: sourcesNoOpt sources lib
 
 default: all
 
@@ -78,7 +78,7 @@ sourcesNoOpt: $(OFILES_NO_OPT) $(DEP_FILE)
 sources: $(OFILES) $(DEP_FILE)
 
 # The 'source's makes all the .o files. It also depends on the dependence file "DEP_FILE".
-sourcesCuf: $(OCUFFILES) $(DEP_FILE)
+# sourcesCuf: $(OCUFFILES) $(DEP_FILE)
 
 # The .dep file depends on the source files, so it automatically gets updated
 # when you change your source
@@ -90,8 +90,8 @@ $(DEP_FILE): $(fortranFilesNoOpt) $(fortranFiles) $(cuffiles)
 include $(DEP_FILE)
 
 # The 'lib' target builds the static archive. It depends on "sources".
-lib: sourcesNoOpt sources sourcesCuf
-	$(AR) $(AR_FLAGS) libadflow.a $(OFILES_NO_OPT) $(OFILES) $(OCUFFILES) 
+lib: sourcesNoOpt sources 
+	$(AR) $(AR_FLAGS) libadflow.a $(OFILES_NO_OPT) $(OFILES) 
 
 # These are the extra python objects for the python library
 PYTHON_OBJECTS = fortranobject.o\
