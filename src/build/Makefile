@@ -41,7 +41,7 @@ fortranFilesNoOpt:=$(addprefix ../,$(fortranFilesNoOpt))
 fortranFiles:=$(addprefix ../,$(fortranFiles))
 cFiles:=$(addprefix ../,$(cFiles))
 f77Files:=$(addprefix ../,$(f77Files))
-cuffiles:=$(addprefix ../,$(cuffiles))
+cuffiles:=$(addprefix ../,$(cufFiles))
 
 # Now strip off the directory part. This is because fort_depend gives
 # us targets that are like <filename.o>.
@@ -78,7 +78,7 @@ sourcesNoOpt: $(OFILES_NO_OPT) $(DEP_FILE)
 sources: $(OFILES) $(DEP_FILE)
 
 # The 'source's makes all the .o files. It also depends on the dependence file "DEP_FILE".
-sourcesCuf: $(OCUFFILES) output/tecplotIO.cuf
+sourcesCuf: $(OCUFFILES) $(DEP_FILE)
 
 # The .dep file depends on the source files, so it automatically gets updated
 # when you change your source

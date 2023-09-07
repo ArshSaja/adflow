@@ -54,11 +54,10 @@ fortranFiles=	ADT/adtUtils.F90\
 		modules/actuatorRegionData.F90\
 		\
 		NKSolver/NKSolvers.F90\
-		NKSolver/blockette.F90\
 		\
 		output/outputMod.F90\
 		output/writeCGNSSurface.F90\
-		output/tecplotIO.cuf\
+		output/tecplotIO.F90\
 		output/writeCGNSGrid.F90\
 		output/writeCGNSVolume.F90\
 		output/writeSol.F90\
@@ -197,3 +196,5 @@ cFiles = 	metis-4.0/metis.c\
 
 f77Files = 	adjoint/ADFirstAidKit/adBuffer.f\
 		adjoint/ADFirstAidKit/debugAD.f\
+
+cufFiles =	NKSolver/blockette.cuf\
