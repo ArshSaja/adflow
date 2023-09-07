@@ -58,7 +58,7 @@ fortranFiles=	ADT/adtUtils.F90\
 		\
 		output/outputMod.F90\
 		output/writeCGNSSurface.F90\
-		output/tecplotIO.F90\
+		output/tecplotIO.cuf\
 		output/writeCGNSGrid.F90\
 		output/writeCGNSVolume.F90\
 		output/writeSol.F90\

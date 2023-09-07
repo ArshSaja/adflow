@@ -18,6 +18,8 @@ FF77_ALL_FLAGS = $(FF77_ALL_FLAGS_NO_OPT) $(FFXX_OPT_FLAGS)
 CC_ALL_FLAGS     = $(C_FLAGS) -I../c_defines  -I../metis-4.0  $(PETSC_CC_INCLUDES) \
 		   $(CC_PRECISION_FLAGS)
 
+CUF_ALL_FLAGS = $(CUF_FLAGS) $(CGNS_INCLUDE_FLAGS) -I. \
+		   $(PETSC_CC_INCLUDES) $(FF90_PRECISION_FLAGS)
 LINKER_ALL_FLAGS = $(CGNS_LINKER_FLAGS) $(PETSC_LIB) $(LINKER_FLAGS)
 
 # Include the full filelist
@@ -39,6 +41,7 @@ fortranFilesNoOpt:=$(addprefix ../,$(fortranFilesNoOpt))
 fortranFiles:=$(addprefix ../,$(fortranFiles))
 cFiles:=$(addprefix ../,$(cFiles))
 f77Files:=$(addprefix ../,$(f77Files))
+cuffiles:=$(addprefix ../,$(cuffiles))
 
 # Now strip off the directory part. This is because fort_depend gives
 # us targets that are like <filename.o>.
@@ -46,17 +49,19 @@ fortranFilesNoOptNoDir=$(notdir $(fortranFilesNoOpt))
 fortranFilesNoDir=$(notdir $(fortranFiles))
 cFilesNoDir=$(notdir $(cFiles))
 f77FilesNoDir=$(notdir $(f77Files))
+cuffilesNoDir=$(notdir $(cuffiles))
 
 # Generate two separate list of .F90 and .f90 files using the filter command
 f90FilesNoOpt=$(filter %.f90,$(fortranFilesNoOptNoDir))
 F90FilesNoOpt=$(filter %.F90,$(fortranFilesNoOptNoDir))
 f90Files=$(filter %.f90,$(fortranFilesNoDir))
 F90Files=$(filter %.F90,$(fortranFilesNoDir))
+CUFFiles=$(filter %.cuf,$(cuffilesNoDir))
 
 # Finally convert all source files to .o
 OFILES_NO_OPT=$(f90FilesNoOpt:%.f90=%.o) $(F90FilesNoOpt:%.F90=%.o)
 OFILES=$(f90Files:%.f90=%.o) $(F90Files:%.F90=%.o) $(cFilesNoDir:%.c=%.o) $(f77FilesNoDir:%.f=%.o)
-
+OCUFFILES=$(CUFFiles:%.cuf=%.o)
 # Define the file name for the auto-generated dependency file.
 DEP_FILE=adflow_project.dep
 
@@ -72,18 +77,21 @@ sourcesNoOpt: $(OFILES_NO_OPT) $(DEP_FILE)
 # The 'source's makes all the .o files. It also depends on the dependence file "DEP_FILE".
 sources: $(OFILES) $(DEP_FILE)
 
+# The 'source's makes all the .o files. It also depends on the dependence file "DEP_FILE".
+sourcesCuf: $(OCUFFILES) output/tecplotIO.cuf
+
 # The .dep file depends on the source files, so it automatically gets updated
 # when you change your source
-$(DEP_FILE): $(fortranFilesNoOpt) $(fortranFiles)
+$(DEP_FILE): $(fortranFilesNoOpt) $(fortranFiles) $(cuffiles)
 	@echo "Making dependencies!\n"
-	$(PYTHON) fort_depend.py -w -o $(DEP_FILE) -f $(fortranFilesNoOpt) $(fortranFiles)
+	$(PYTHON) fort_depend.py -w -o $(DEP_FILE) -f $(fortranFilesNoOpt) $(fortranFiles) $(cuffiles)
 
 # Include the automatically generated file.
 include $(DEP_FILE)
 
 # The 'lib' target builds the static archive. It depends on "sources".
-lib: sourcesNoOpt sources
-	$(AR) $(AR_FLAGS) libadflow.a $(OFILES_NO_OPT) $(OFILES)
+lib: sourcesNoOpt sources sourcesCuf
+	$(AR) $(AR_FLAGS) libadflow.a $(OFILES_NO_OPT) $(OFILES) $(OCUFFILES) 
 
 # These are the extra python objects for the python library
 PYTHON_OBJECTS = fortranobject.o\
@@ -134,6 +142,8 @@ python: lib ../f2py/adflow.pyf
 
 # Compiled f2py-generated wrapper file
 	$(FF90) $(FF90_ALL_FLAGS) -I./ -c libadflow-f2pywrappers2.f90
+
+
 
 # Final Link:
 	$(FF90) -shared $(PYTHON_OBJECTS) libadflow.a $(LINKER_ALL_FLAGS) -o libadflow.so
