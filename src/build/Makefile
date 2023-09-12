@@ -15,7 +15,7 @@ FF77_ALL_FLAGS_NO_OPT = $(FF77_FLAGS) $(CGNS_INCLUDE_FLAGS) -I. \
 
 FF77_ALL_FLAGS = $(FF77_ALL_FLAGS_NO_OPT) $(FFXX_OPT_FLAGS)
 
-CC_ALL_FLAGS     = $(C_FLAGS) -I../c_defines  -I../metis-4.0  $(PETSC_CC_INCLUDES) \
+CC_ALL_FLAGS = $(C_FLAGS) -I../c_defines  -I../metis-4.0  $(PETSC_CC_INCLUDES) \
 		   $(CC_PRECISION_FLAGS)
 
 CUF_ALL_FLAGS = $(CUF_FLAGS) $(CGNS_INCLUDE_FLAGS) -I. \
@@ -56,7 +56,7 @@ f90FilesNoOpt=$(filter %.f90,$(fortranFilesNoOptNoDir))
 F90FilesNoOpt=$(filter %.F90,$(fortranFilesNoOptNoDir))
 f90Files=$(filter %.f90,$(fortranFilesNoDir))
 F90Files=$(filter %.F90,$(fortranFilesNoDir))
-CUFFiles=$(filter %.cuf,$(cuffilesNoDir))
+CUFFiles=$(filter %.cu,$(cuffilesNoDir))
 
 # Finally convert all source files to .o
 OFILES_NO_OPT=$(f90FilesNoOpt:%.f90=%.o) $(F90FilesNoOpt:%.F90=%.o)

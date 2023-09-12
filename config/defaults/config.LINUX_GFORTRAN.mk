@@ -31,7 +31,7 @@ COMPLEXIFY_INCLUDE_FLAGS=-I$(COMPLEXIFY_DIR)/include
 COMPLEXIFY_LINKER_FLAGS=-L$(COMPLEXIFY_DIR)/lib -lcomplexify
 
 # ------- Define Compiler Flags ----------------------------------------
-FF77_FLAGS = -fPIC -Mr8 -march=native
+FF77_FLAGS = -fPIC -Mr8 -c++libs -march=native
 FF90_FLAGS = $(FF77_FLAGS) 
 FFXX_OPT_FLAGS = -O3 
 C_FLAGS   = -fPIC -O

@@ -1,10 +1,11 @@
 module NKSolver
 
     use constants
-
+    
     ! MPI comes from constants, so we need to avoid MPIF_H in PETSc
 #include <petsc/finclude/petsc.h>
     use petsc
+    ! use cudafor
     implicit none
 
     ! PETSc Matrices:
@@ -21,7 +22,7 @@ module NKSolver
     ! deltaW: Update to the wVec from linear solution
     ! diagV: Diagonal lumping term
 
-    Vec wVec, rVec, deltaW, work, g, baseRes
+    Vec wVec, rVec, deltaW, deltaW_d, work, g, baseRes
 
     ! NK_KSP: The ksp object for solving the newton udpate
     KSP NK_KSP
@@ -72,6 +73,9 @@ module NKSolver
 
     ! Parameter for external preconditioner
     integer(kind=intType) :: applyPCSubSpaceSize
+
+    ! cuda data
+    ! real, device :: deltaW_d
 
 contains
 
@@ -127,6 +131,12 @@ contains
 
             call VecDuplicate(wVec, baseRes, ierr)
             call EChk(ierr, __FILE__, __LINE__)
+
+            ! cuda vector
+
+            call VecCreateMPICUDA(ADFLOW_COMM_WORLD , nDimW, PETSC_DECIDE,deltaW_d, ierr);
+            ! call VecSetSizes(deltaW_d, nDimW, PETSC_DECIDE);
+            ! call VecSetType(deltaW_d, cuda, ierr)
 
             ! Create the two additional work vectors for the line search:
             call VecDuplicate(wVec, g, ierr)
@@ -513,8 +523,11 @@ contains
         use iteration, only: approxTotalIts, totalR0, stepMonitor, LinResMonitor, iterType
         use utils, only: EChk
         use killSignals, only: routineFailed
+        use cudafor
+        
         implicit none
-
+        ! Working
+        PC cudaPC
         ! Input Variables
         logical, intent(in) :: firstCall
 
@@ -525,7 +538,9 @@ contains
         real(kind=alwaysrealType) :: fnorm, ynorm, gnorm
         logical :: flag
         real(kind=alwaysRealType) :: resHist(NK_subspace + 1)
-
+        type(dim3) :: grid, tBlock
+        
+        
         if (firstCall) then
             call setupNKSolver()
 
@@ -625,8 +640,17 @@ contains
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Actually do the Linear Krylov Solve
-        call KSPSolve(NK_KSP, rVec, deltaW, ierr)
-
+        tBlock = dim3(256,1,1)
+        grid = dim3(ceiling(real(nw)/tBlock%x),1,1)
+        ! deltaW_d = deltaW
+        call VecCopy(deltaW, deltaW_d, ierr)
+        call EChk(ierr, __FILE__, __LINE__)
+        ! call KSPSolve(NK_KSP, rVec, deltaW_d, ierr)
+        call KSPGetPC(NK_KSP, cudaPC,ierr)
+        call PCSetType(cudaPC,"boomeramg",ierr)
+        call KSPSolve(NK_KSP, rVec, deltaW_d, ierr)
+        call VecCopy(deltaW_d, deltaW, ierr)
+        call EChk(ierr, __FILE__, __LINE__)
         ! DON'T just check the error. We want to catch error code 72
         ! which is a floating point error. This is ok, we just reset and
         ! keep going
