@@ -413,7 +413,7 @@ class ADflowSolver(ImplicitComponent):
         self.cache_counter = 0
         self.cache_counter_ex = 0
         self.n_balance = 1
-        self.n_const_p_obj = 2
+        self.n_const_p_obj = 3
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def set_ap(self, ap):
@@ -617,25 +617,27 @@ class ADflowSolver(ImplicitComponent):
         #     normRes = normRes
         #     normResCur = normRes0R
 
-        # if normRes>1e-10 :
+        # if normRes>1e-12 :
         #     # first call gets 1e-4 always
         #     if self.nl_call>0:
-        #         solver.setOption("adjointl2convergencerel", 1e-2)
+        #         solver.setOption("adjointl2convergencerel",  self.l2_linrel_save)
         #     else:
         #         solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
 
         #     # self.first_call = False
         # else:
-        #     solver.setOption("adjointl2convergencerel", 1e-12)
+        #     # solver.setOption("adjointl2convergencerel", 1e-12)
+        #     solver.setOption("adjointl2convergence", 1e-12)
+        #     solver.setOption("adjointl2convergencerel", 1e-16)
 
-        # # normRes0,normRes0R,normRes = solver.getResNorms()
-        # # if self.comm.rank == 0:
-        # #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0)
-        # # if normRes0!=0.0:
-        # #     if normRes is not None:
-        # #         normRes = normRes/normRes0
-        # # else:
-        # #     normRes = normRes
+        # normRes0,normRes0R,normRes = solver.getResNorms()
+        # if self.comm.rank == 0:
+        #     print("Resdiual Norms for Lin set:",normRes0,normRes0R,normRes/normRes0)
+        # if normRes0!=0.0:
+        #     if normRes is not None:
+        #         normRes = normRes/normRes0
+        # else:
+        #     normRes = normRes
 
         # if  normRes>1e-10 or normRes is None:
         #     if self.comm.rank == 0:
@@ -769,6 +771,8 @@ class ADflowSolver(ImplicitComponent):
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
 
             resd = d_residuals["adflow_states"]
+            if self.comm.rank == 0:
+                print("norm",np.linalg.norm(resd))
             solver.solveDirectForRHS(resd, phi)  # , absTol=self.abs_direct_tols[self.cache_counter])
 
             self.comm.barrier()
@@ -787,10 +791,10 @@ class ADflowSolver(ImplicitComponent):
 
         elif mode == "rev":
             # # check if we have a cached solution, if not, we start with zero
-            if self.cached_sols[self.cache_counter] is None:
+            if self.cached_sols[self.cache_counter_ex] is None:
                 if self.comm.rank == 0:
-                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-                self.cached_sols[self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter_ex}")
+                self.cached_sols[self.cache_counter_ex] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
 
@@ -802,8 +806,14 @@ class ADflowSolver(ImplicitComponent):
             if self.cache_counter_ex < self.n_balance:
                 solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
                 phi = self.cached_sols[self.cache_counter].copy()
+            elif self.cache_counter_ex < self.n_balance+1:
+
+                solver.setOption("adjointl2convergence", 1e-12)
+                solver.setOption("adjointl2convergencerel", 1e-16)
+                phi = self.cached_sols[self.cache_counter_ex].copy()
             else:
-                solver.setOption("adjointl2convergencerel", 1e-12)
+                solver.setOption("adjointl2convergence", 1e-12)
+                solver.setOption("adjointl2convergencerel", 1e-16)
                 phi = d_residuals["adflow_states"].copy()
                 self.cache_counter = 0
                 # self.usecache=False
@@ -818,6 +828,9 @@ class ADflowSolver(ImplicitComponent):
             # cache the solution
             if self.cache_counter_ex < self.n_balance:
                 self.cached_sols[self.cache_counter] = phi.copy()
+            # cache the solution
+            elif self.cache_counter_ex < self.n_balance +1:
+                self.cached_sols[self.cache_counter_ex] = phi.copy()
             # cache the solution
             # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
 
@@ -1648,6 +1661,9 @@ class ADflowBuilder(Builder):
 
     def get_post_coupling_subsystem(self, scenario_name=None):
         return ADflowFunctions(aero_solver=self.solver)
+    
+    def get_post_coupling_subsystem_schur(self, scenario_name=None):
+        return ADflowFunctions(aero_solver=self.solver, write_solution=False)
 
     # TODO the get_nnodes is deprecated. will remove
     def get_nnodes(self, groupName=None):
