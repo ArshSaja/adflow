@@ -412,8 +412,8 @@ class ADflowSolver(ImplicitComponent):
         self.cached_sols = [None, None, None, None, None]
         self.cache_counter = 0
         self.cache_counter_ex = 0
-        self.n_balance = 1
-        self.n_const_p_obj = 3
+        self.n_balance = 3
+        self.n_const_p_obj = 5
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def set_ap(self, ap):
@@ -802,10 +802,12 @@ class ADflowSolver(ImplicitComponent):
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time before CFD linear solve: {time.time():.3f}", flush=True)
-            # load the cached solution
+            # load the cached solution np.linalg.norm(dwdot)
             if self.cache_counter_ex < self.n_balance:
                 solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
                 phi = self.cached_sols[self.cache_counter].copy()
+                if self.comm.rank == 0:
+                    print("Initial Sol: ", np.linalg.norm(phi), np.linalg.norm(d_outputs["adflow_states"]), flush=True)
             elif self.cache_counter_ex < self.n_balance+1:
 
                 solver.setOption("adjointl2convergence", 1e-12)
