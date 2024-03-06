@@ -468,7 +468,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : aeroProblem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
            The AP object that the displacements should be applied to.
         dispFile : str
            The file contaning the displacements. This file should have
@@ -888,17 +888,19 @@ class ADFLOW(AeroSolver):
         coordXfer=None,
     ):
         """
-        Add an actuator disk zone defined by the supplied closed
-        surface in the plot3d file "fileName". This surface defines the
-        physical extent of the region over which to apply the source terms.
-        Internally, we find all of the CFD volume cells that are inside
-        this closed surface and apply the source terms over these cells.
-        This surface is only used with the original mesh coordinates to
-        mark the internal CFD cells, and we keep using these cells even
-        if the geometric design and the mesh coordinates change. For
-        example, the marked cells can lie outside of the original
-        closed surface after a large design change, but we will still
-        use the cells that were inside the surface with the baseline design.
+        Add an actuator disk zone defined by the supplied closed surface in the
+        plot3d file "fileName". This surface defines the physical extent of the
+        region over which to apply the source terms. The plot3d file may be
+        multi-block but all the surface normals must point outside and no
+        additional surfaces can be inside. Internally, we find all of the CFD
+        volume cells that have their center inside this closed surface and
+        apply the source terms over these cells. This surface is only used with
+        the original mesh coordinates to mark the internal CFD cells, and we
+        keep using these cells even if the geometric design and the mesh
+        coordinates change. For example, the marked cells can lie outside of
+        the original closed surface after a large design change, but we will
+        still use the cells that were inside the surface with the baseline
+        design.
 
         axis1 and axis2 define the vector that we use to determine the
         direction of the thrust addition. Internally, we compute a
@@ -1235,7 +1237,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The complete description of the problem to solve
         mdCallBack : python function
             Call back for doing unsteady aeroelastic. Currently
@@ -1303,7 +1305,8 @@ class ADFLOW(AeroSolver):
                 )
 
         if self.adflow.killsignals.fatalfail:
-            fileName = f"failed_mesh_{self.curAP.name}_{self.curAP.adflowData.callCounter:03}.cgns"
+            numDigits = self.getOption("writeSolutionDigits")
+            fileName = f"failed_mesh_{self.curAP.name}_{self.curAP.adflowData.callCounter:0{numDigits}}.cgns"
             self.pp(f"Fatal failure during mesh warp! Bad mesh is written in output directory as {fileName}")
             self.writeMeshFile(os.path.join(self.getOption("outputDirectory"), fileName))
             self.curAP.fatalFail = True
@@ -1587,7 +1590,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to to get the solution for
 
         funcs : dict
@@ -1830,7 +1833,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to solve
 
         evalFuncs : iterable object containing strings
@@ -1912,7 +1915,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to solve
         CLStar : float
             The desired target CL
@@ -2415,7 +2418,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        AeroProblem : AeroProblem instance
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to be solved
         funcDict : dict
             Dictionary of function DV pairs to solve:
@@ -2566,7 +2569,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to solve
         sepStar : float
             The desired target separation sensor value
@@ -2736,14 +2739,15 @@ class ADFLOW(AeroSolver):
 
         # If we are numbering solution, it saving the sequence of
         # calls, add the call number
+        numDigits = self.getOption("writeSolutionDigits")
         if number is not None:
             # We need number based on the provided number:
-            baseName = baseName + "_%3.3d" % number
+            baseName = baseName + f"_%.{numDigits}d" % number
         else:
             # if number is none, i.e. standalone, but we need to
             # number solutions, use internal counter
             if self.getOption("numberSolutions"):
-                baseName = baseName + "_%3.3d" % self.curAP.adflowData.callCounter
+                baseName = baseName + f"_%.{numDigits}d" % self.curAP.adflowData.callCounter
 
         # Join to get the actual filename root
         base = os.path.join(outputDir, baseName)
@@ -3121,7 +3125,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem object
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aeroproblem with the flow information we would like
             to reset the flow to.
         """
@@ -3164,7 +3168,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem object
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aeroproblem whose ANK CFL will be reset.
         """
         aeroProblem.adflowData.ank_cfl = self.getOption("ANKCFL0")
@@ -3283,7 +3287,15 @@ class ADFLOW(AeroSolver):
         self.mesh.setSurfaceCoordinates(meshSurfCoords)
 
     def setAeroProblem(self, aeroProblem, releaseAdjointMemory=True):
-        """Set the supplied aeroProblem to be used in ADflow"""
+        """Set the supplied aeroProblem to be used in ADflow.
+
+        Parameters
+        ----------
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
+            The supplied aeroproblem to be set.
+        releaseAdjointMemory : bool, optional
+            Flag to release the adjoint memory when setting a new aeroproblem, by default True
+        """
 
         ptSetName = "adflow_%s_coords" % aeroProblem.name
 
@@ -3411,9 +3423,16 @@ class ADFLOW(AeroSolver):
             self.adflow.anksolver.ank_cfl = aeroProblem.adflowData.ank_cfl
 
     def _setAeroProblemData(self, aeroProblem, firstCall=False):
+        """After an aeroProblem has been associated with self.curAP, set
+        all the updated information in ADflow.
+
+        Parameters
+        ----------
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
+            The current aeroProblem object.
+        firstCall : bool, optional
+            Flag that signifies this is being called for the first time, by default False
         """
-        After an aeroProblem has been associated with self.curAP, set
-        all the updated information in ADflow."""
 
         # Set any additional adflow options that may be defined in the
         # aeroproblem. While we do it we save the options that we've
@@ -5228,7 +5247,7 @@ class ADFLOW(AeroSolver):
 
         Parameters
         ----------
-        aeroProblem : pyAero_problem class
+        aeroProblem : :class:`~baseclasses:baseclasses.problems.pyAero_problem.AeroProblem`
             The aerodynamic problem to get the error for
 
         funcError : dict
@@ -5526,6 +5545,8 @@ class ADFLOW(AeroSolver):
             ],
             "turbulenceOrder": [str, ["first order", "second order"]],
             "turbResScale": [(float, list, type(None)), None],
+            "meshMaxSkewness": [float, 1.0],
+            "useSkewnessCheck": [bool, False],
             "turbulenceProduction": [str, ["strain", "vorticity", "Kato-Launder"]],
             "useQCR": [bool, False],
             "useRotationSA": [bool, False],
@@ -5631,19 +5652,19 @@ class ADFLOW(AeroSolver):
             "NKUseEW": [bool, True],
             "NKADPC": [bool, False],
             "NKViscPC": [bool, False],
+            "NKGlobalPreconditioner": [str, ["additive Schwarz", "multigrid"]],
             "NKASMOverlap": [int, 1],
             "NKPCILUFill": [int, 2],
             "NKJacobianLag": [int, 20],
             "applyPCSubspaceSize": [int, 10],
             "NKInnerPreconIts": [int, 1],
             "NKOuterPreconIts": [int, 1],
+            "NKAMGLevels": [int, 2],
+            "NKAMGNSmooth": [int, 1],
             "NKLS": [str, ["cubic", "none", "non-monotone"]],
             "NKFixedStep": [float, 0.25],
             "RKReset": [bool, False],
             "nRKReset": [int, 5],
-            # MG PC
-            "AGMGLevels": [int, 1],
-            "AGMGNSmooth": [int, 3],
             # Approximate Newton-Krylov Parameters
             "useANKSolver": [bool, True],
             "ANKUseTurbDADI": [bool, True],
@@ -5654,11 +5675,14 @@ class ADFLOW(AeroSolver):
             "ANKLinearSolveTol": [float, 0.05],
             "ANKLinearSolveBuffer": [float, 0.01],
             "ANKLinResMax": [float, 0.1],
+            "ANKGlobalPreconditioner": [str, ["additive Schwarz", "multigrid"]],
             "ANKASMOverlap": [int, 1],
             "ANKPCILUFill": [int, 2],
             "ANKJacobianLag": [int, 10],
             "ANKInnerPreconIts": [int, 1],
             "ANKOuterPreconIts": [int, 1],
+            "ANKAMGLevels": [int, 2],
+            "ANKAMGNSmooth": [int, 1],
             "ANKCFL0": [float, 5.0],
             "ANKCFLMin": [float, 1.0],
             "ANKCFLLimit": [float, 1e5],
@@ -5692,6 +5716,7 @@ class ADFLOW(AeroSolver):
             "partitionLikeNProc": [int, -1],
             # Misc Parameters
             "numberSolutions": [bool, True],
+            "writeSolutionDigits": [int, 3],
             "printIterations": [bool, True],
             "printTiming": [bool, True],
             "printIntro": [bool, True],
@@ -5699,6 +5724,7 @@ class ADFLOW(AeroSolver):
             "setMonitor": [bool, True],
             "printWarnings": [bool, True],
             "printNegativeVolumes": [bool, False],
+            "printBadlySkewedCells": [bool, False],
             "monitorVariables": [list, ["cpu", "resrho", "resturb", "cl", "cd"]],
             "surfaceVariables": [list, ["cp", "vx", "vy", "vz", "mach"]],
             "volumeVariables": [list, ["resrho"]],
@@ -5736,6 +5762,8 @@ class ADFLOW(AeroSolver):
             "ASMOverlap": [int, 1],
             "innerPreconIts": [int, 1],
             "outerPreconIts": [int, 3],
+            "adjointAMGLevels": [int, 2],
+            "adjointAMGNSmooth": [int, 1],
             "applyAdjointPCSubspaceSize": [int, 20],
             "frozenTurbulence": [bool, False],
             "useMatrixFreedrdw": [bool, True],
@@ -5784,6 +5812,7 @@ class ADFLOW(AeroSolver):
             "zippersurfacefamily",
             "cutcallback",
             "explicitsurfacecallback",
+            "useskewnesscheck",
         )
 
     def _getOptionMap(self):
@@ -5797,7 +5826,7 @@ class ADFLOW(AeroSolver):
             "stab": self.adflow.inputtsstabderiv,
             "nk": self.adflow.nksolver,
             "ank": self.adflow.anksolver,
-            "agmg": self.adflow.agmg,
+            "amg": self.adflow.amg,
             "adjoint": self.adflow.inputadjoint,
             "cost": self.adflow.inputcostfunctions,
             "unsteady": self.adflow.inputunsteady,
@@ -5895,6 +5924,8 @@ class ADFLOW(AeroSolver):
             },
             "turbulenceorder": {"first order": 1, "second order": 2, "location": ["discr", "orderturb"]},
             "turbresscale": ["iter", "turbresscale"],
+            "meshmaxskewness": ["iter", "meshmaxskewness"],
+            "useskewnesscheck": ["iter", "useskewnesscheck"],
             "turbulenceproduction": {
                 "strain": self.adflow.constants.strain,
                 "vorticity": self.adflow.constants.vorticity,
@@ -6012,6 +6043,11 @@ class ADFLOW(AeroSolver):
             "nkswitchtol": ["nk", "nk_switchtol"],
             "nksubspacesize": ["nk", "nk_subspace"],
             "nklinearsolvetol": ["nk", "nk_rtolinit"],
+            "nkglobalpreconditioner": {
+                "additive schwarz": "asm",
+                "multigrid": "mg",
+                "location": ["nk", "nk_precondtype"],
+            },
             "nkasmoverlap": ["nk", "nk_asmoverlap"],
             "nkpcilufill": ["nk", "nk_ilufill"],
             "nkjacobianlag": ["nk", "nk_jacobianlag"],
@@ -6020,6 +6056,8 @@ class ADFLOW(AeroSolver):
             "applypcsubspacesize": ["nk", "applypcsubspacesize"],
             "nkinnerpreconits": ["nk", "nk_innerpreconits"],
             "nkouterpreconits": ["nk", "nk_outerpreconits"],
+            "nkamglevels": ["nk", "nk_amglevels"],
+            "nkamgnsmooth": ["nk", "nk_amgnsmooth"],
             "nkls": {
                 "none": self.adflow.constants.nolinesearch,
                 "cubic": self.adflow.constants.cubiclinesearch,
@@ -6029,9 +6067,6 @@ class ADFLOW(AeroSolver):
             "nkfixedstep": ["nk", "nk_fixedstep"],
             "rkreset": ["iter", "rkreset"],
             "nrkreset": ["iter", "miniternum"],
-            # MG PC
-            "agmglevels": ["agmg", "agmglevels"],
-            "agmgnsmooth": ["agmg", "agmgnsmooth"],
             # Approximate Newton-Krylov Parameters
             "useanksolver": ["ank", "useanksolver"],
             "ankuseturbdadi": ["ank", "ank_useturbdadi"],
@@ -6042,11 +6077,18 @@ class ADFLOW(AeroSolver):
             "anklinearsolvetol": ["ank", "ank_rtol"],
             "anklinearsolvebuffer": ["ank", "ank_atol_buffer"],
             "anklinresmax": ["ank", "ank_linresmax"],
+            "ankglobalpreconditioner": {
+                "additive schwarz": "asm",
+                "multigrid": "mg",
+                "location": ["ank", "ank_precondtype"],
+            },
             "ankasmoverlap": ["ank", "ank_asmoverlap"],
             "ankpcilufill": ["ank", "ank_ilufill"],
             "ankjacobianlag": ["ank", "ank_jacobianlag"],
             "ankinnerpreconits": ["ank", "ank_innerpreconits"],
             "ankouterpreconits": ["ank", "ank_outerpreconits"],
+            "ankamglevels": ["ank", "ank_amglevels"],
+            "ankamgnsmooth": ["ank", "ank_amgnsmooth"],
             "ankcfl0": ["ank", "ank_cfl0"],
             "ankcflmin": ["ank", "ank_cflmin0"],
             "ankcfllimit": ["ank", "ank_cfllimit"],
@@ -6086,6 +6128,7 @@ class ADFLOW(AeroSolver):
             "printiterations": ["iter", "printiterations"],
             "printwarnings": ["iter", "printwarnings"],
             "printnegativevolumes": ["iter", "printnegativevolumes"],
+            "printbadlyskewedcells": ["iter", "printbadlyskewedcells"],
             "printtiming": ["adjoint", "printtiming"],
             "setmonitor": ["adjoint", "setmonitor"],
             "storeconvhist": ["io", "storeconvinneriter"],
@@ -6139,6 +6182,8 @@ class ADFLOW(AeroSolver):
             "asmoverlap": ["adjoint", "overlap"],
             "innerpreconits": ["adjoint", "innerpreconits"],
             "outerpreconits": ["adjoint", "outerpreconits"],
+            "adjointamglevels": ["adjoint", "adjamglevels"],
+            "adjointamgnsmooth": ["adjoint", "adjamgnsmooth"],
             "firstrun": ["adjoint", "firstrun"],
             "verifystate": ["adjoint", "verifystate"],
             "verifyspatial": ["adjoint", "verifyspatial"],
@@ -6166,6 +6211,7 @@ class ADFLOW(AeroSolver):
 
         pythonOptions = {
             "numbersolutions",
+            "writesolutiondigits",
             "writetecplotsurfacesolution",
             "coupledsolution",
             "partitiononly",
@@ -6333,6 +6379,9 @@ class ADFLOW(AeroSolver):
             "cofzx": self.adflow.constants.costfunccoforcezx,
             "cofzy": self.adflow.constants.costfunccoforcezy,
             "cofzz": self.adflow.constants.costfunccoforcezz,
+            "colx": self.adflow.constants.costfunccofliftx,
+            "coly": self.adflow.constants.costfunccoflifty,
+            "colz": self.adflow.constants.costfunccofliftz,
         }
 
         return iDV, BCDV, adflowCostFunctions
