@@ -454,13 +454,18 @@ class ADflowSolver(ImplicitComponent):
         self.l2_coupled_save = solver.getOption("ankcoupledswitchtol")
 
         # self.declare_partials(of='adflow_states', wrt='*')
-
+        self.cached_sols = []
+        self.cached_sols_fwd = [None, None,None]
         # TODO once caching is available from openmdao, these will be removed
-        self.cached_sols = [None, None, None, None, None]
+        for i in range(5):
+            self.cached_sols.append([None, None, None, None, None])
+
+        self.cache_counter_constr=0
+        self.cache_counter_constr_ex=0
         self.cache_counter = 0
         self.cache_counter_ex = 0
         self.n_balance = 3
-        self.n_const_p_obj =5
+        self.n_const_p_obj = 3 + 2
         # self.declare_partials(of='adflow_states', wrt='*')
 
     def set_ap(self, ap):
@@ -547,6 +552,10 @@ class ADflowSolver(ImplicitComponent):
         #     if self.comm.rank == 0:
         #         print("ankcoupledswitchtol :",self.l2_coupled_save)
         #     solver.setOption("ankcoupledswitchtol", self.l2_coupled_save)
+        self.cache_counter = 0
+        self.cache_counter_ex = 0
+        self.cache_counter_constr = 0
+        self.cache_counter_constr_ex = 0
 
         if self._do_solve:
             setAeroProblem(solver, ap, self.ap_vars, inputs=inputs, outputs=outputs, print_dict=False)
@@ -584,7 +593,10 @@ class ADflowSolver(ImplicitComponent):
                         # write the solution so that we can diagnose
                         solver.writeSolution(baseName="analysis_fail", number=self.solution_counter)
                         self.solution_counter += 1
-
+                        self.cache_counter = 0
+                        self.cache_counter_ex = 0
+                        self.cache_counter_constr = 0
+                        self.cache_counter_constr_ex = 0
                         if self.analysis_error_on_failure:
                             solver.resetFlow(ap)
                             self.cleanRestart = True
@@ -608,7 +620,10 @@ class ADflowSolver(ImplicitComponent):
                         ap.fatalFail = False
                         solver.resetFlow(ap)
                         solver(ap, writeSolution=False)
-
+                        self.cache_counter = 0
+                        self.cache_counter_ex = 0
+                        self.cache_counter_constr = 0
+                        self.cache_counter_constr_ex = 0
                         if ap.solveFailed or ap.fatalFail:  # we tried, but there was no saving it
                             if self.comm.rank == 0:
                                 print("###############################################################")
@@ -618,6 +633,8 @@ class ADflowSolver(ImplicitComponent):
                             # write the solution so that we can diagnose
                             solver.writeSolution(baseName="analysis_fail", number=self.solution_counter)
                             self.solution_counter += 1
+                            self.cache_counter = 0
+                            self.cache_counter_ex = 0
 
                             if self.analysis_error_on_failure:
                                 # re-set the flow for the next iteration:
@@ -640,6 +657,10 @@ class ADflowSolver(ImplicitComponent):
 
                 else:
                     # the solve failed, but we dont want to restart or raise an error, we will just let this one pass
+                    self.cache_counter = 0
+                    self.cache_counter_ex = 0
+                    self.cache_counter_constr = 0
+                    self.cache_counter_constr_ex = 0
                     pass
 
             # solve did not fail, therefore we will re-use this converged flowfield for the next iteration.
@@ -647,9 +668,15 @@ class ADflowSolver(ImplicitComponent):
             # with a clean restart
             else:
                 self.cleanRestart = False
+                self.cache_counter = 0
+                self.cache_counter_ex = 0
+                self.cache_counter_constr = 0
+                self.cache_counter_constr_ex = 0
         # adjust the relative L2 convergence
         self.cache_counter = 0
         self.cache_counter_ex = 0
+        self.cache_counter_constr = 0
+        self.cache_counter_constr_ex = 0
 
         # normRes0,normRes0R,normRes = solver.getResNorms()
         # if self.comm.rank == 0:
@@ -809,13 +836,13 @@ class ADflowSolver(ImplicitComponent):
             # TODO once caching is available from the openmdao side, remove these caching calls and just use d_outputs vector as is
 
             # check if we have a cached solution, if not, we start with zero
-            if self.cached_sols[self.cache_counter] is None:
+            if self.cached_sols_fwd[self.cache_counter] is None:
                 if self.comm.rank == 0:
                     print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter}")
-                self.cached_sols[self.cache_counter] = np.zeros_like(d_outputs["adflow_states"])
+                self.cached_sols_fwd[self.cache_counter] = np.zeros_like(d_outputs["adflow_states"])
 
             # load the cached solution
-            phi = self.cached_sols[self.cache_counter].copy()
+            phi = self.cached_sols_fwd[self.cache_counter].copy()
 
             if self.comm.rank == 0:
                 print(f"Current cache counter: {self.cache_counter}")
@@ -827,7 +854,7 @@ class ADflowSolver(ImplicitComponent):
 
             resd = d_residuals["adflow_states"]
             if self.comm.rank == 0:
-                print("norm",np.linalg.norm(resd))
+                print("norm",np.linalg.norm(d_residuals["adflow_states"]))
             solver.solveDirectForRHS(resd, phi)  # , absTol=self.abs_direct_tols[self.cache_counter])
 
             self.comm.barrier()
@@ -837,7 +864,7 @@ class ADflowSolver(ImplicitComponent):
             d_outputs["adflow_states"] = phi
 
             # cache the solution
-            self.cached_sols[self.cache_counter] = phi.copy()
+            self.cached_sols_fwd[self.cache_counter] = phi.copy()
 
             # increment counter. we have 3 solutions for now
             self.cache_counter = (self.cache_counter + 1) % 5
@@ -846,10 +873,16 @@ class ADflowSolver(ImplicitComponent):
 
         elif mode == "rev":
             # # check if we have a cached solution, if not, we start with zero
-            if self.cached_sols[self.cache_counter_ex] is None:
-                if self.comm.rank == 0:
-                    print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter_ex}")
-                self.cached_sols[self.cache_counter_ex] = np.zeros_like(d_residuals["adflow_states"])
+            if self.cache_counter_ex< self.n_balance:
+                if self.cached_sols[0][self.cache_counter] is None:
+                    if self.comm.rank == 0:
+                        print(f"RESETTING LINEAR SOLVER CACHE: {0}  {self.cache_counter}")
+                    self.cached_sols[0][self.cache_counter] = np.zeros_like(d_residuals["adflow_states"])
+            else:
+                if self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex] is None:
+                    if self.comm.rank == 0:
+                        print(f"RESETTING LINEAR SOLVER CACHE: {self.cache_counter_constr} {self.cache_counter_constr_ex}")
+                    self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex] = np.zeros_like(d_residuals["adflow_states"])
 
             # d_residuals['adflow_states'] = solver.solveAdjointForRHS(d_outputs['adflow_states'])
 
@@ -861,18 +894,19 @@ class ADflowSolver(ImplicitComponent):
             if self.cache_counter_ex < self.n_balance:
                 solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
                 # solver.setOption("adjointl2convergence", self.l2_linabs_save)
-                phi = self.cached_sols[self.cache_counter].copy()
+                phi = self.cached_sols[0][self.cache_counter].copy()
                 # if self.comm.rank == 0:
                 #     print("Initial Sol: ", np.linalg.norm(phi), np.linalg.norm(d_outputs["adflow_states"]), flush=True)
             elif self.cache_counter_ex < self.n_balance+1:
 
-                # solver.setOption("adjointl2convergence", self.l2_linabs_save)
-                solver.setOption("adjointl2convergencerel", 1e-16)
-                phi = self.cached_sols[self.cache_counter_ex].copy()
+                solver.setOption("adjointl2convergencerel", self.l2_linrel_save)
+                # solver.setOption("adjointl2convergencerel", 1e-16)
+                phi = self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex].copy()
             else:
                 # solver.setOption("adjointl2convergence", self.l2_linabs_save)
                 solver.setOption("adjointl2convergencerel", 1e-16)
-                phi = d_residuals["adflow_states"].copy()
+                # phi = d_residuals["adflow_states"].copy()
+                phi = self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex].copy()
                 self.cache_counter = 0
                 # self.usecache=False
 
@@ -882,25 +916,40 @@ class ADflowSolver(ImplicitComponent):
             self.comm.barrier()
             if self.comm.rank == 0:
                 print(f"SCHUR SOLVER time after  CFD linear solve: {time.time():.3f}", flush=True)
-
+            if self.comm.rank == 0:
+                print(f"Current cache counter: {self.cache_counter} {self.cache_counter_constr} {self.cache_counter_constr_ex}")
             # cache the solution
             if self.cache_counter_ex < self.n_balance:
-                self.cached_sols[self.cache_counter] = phi.copy()
+                self.cached_sols[0][self.cache_counter] = phi.copy()
             # cache the solution
             elif self.cache_counter_ex < self.n_balance +1:
-                self.cached_sols[self.cache_counter_ex] = phi.copy()
+                
+                self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex] = phi.copy()
+                # self.cache_counter_constr = self.cache_counter_constr +1
+                self.cache_counter_constr_ex = self.cache_counter_constr_ex +1
             # cache the solution
-            # self.cached_sols[self.cache_counter] = d_residuals["adflow_states"].copy()
+            else:
+                
+                self.cached_sols[self.cache_counter_constr][self.cache_counter_constr_ex] = phi.copy()
+                # self.cache_counter_constr = self.cache_counter_constr +1
+                self.cache_counter_constr_ex = 0
 
+            
             # increment counter. we have 3 solutions for now
             # if not self.usecache and self.cache_counter>2:
             self.cache_counter = (self.cache_counter_ex + 1) % self.n_const_p_obj
             self.cache_counter_ex = self.cache_counter
+
+            if self.cache_counter_ex==self.n_balance:
+                self.cache_counter_constr = self.cache_counter_constr +1
+
             if self.cache_counter_ex >= self.n_balance:
+                
+                # self.cache_counter_constr_ex = self.cache_counter_constr_ex +1
                 self.cache_counter = 0
 
             if self.comm.rank == 0:
-                print(f"New cache counter: {self.cache_counter}")
+                print(f"New cache counter: {self.cache_counter} {self.cache_counter_constr} {self.cache_counter_constr_ex}")
 
         return True, 0, 0
 
